@@ -3,6 +3,7 @@ import sys
 import shutil
 import numpy as np
 import math
+import nibabel as nib
 
 def check_external_tools():
     """Check if FSL, dcm2niix, and spec2nii are installed and available."""
@@ -147,3 +148,24 @@ def dicom_orientation_string(normal):
                  orientations[ternary])
 
     return final_angle, final_orientation
+
+def calc_prescription_from_nifti(nii):
+    dimX, dimY, dimZ = nii.header['pixdim'][1], nii.header['pixdim'][2], nii.header['pixdim'][3]
+
+    # slice positioning in 3-D space
+    # nb: -1 for dir cosines gives consistent orientation between Nifti and DICOM in ITK-Snap
+    A = nii.affine
+    rotmat,transvec = nib.affines.to_matvec(A)
+    dircosX = -1*rotmat[:3, 0] / dimX
+    dircosY = -1*rotmat[:3, 1] / dimY
+    dircosZ = rotmat[:3, 2] / dimZ #this is the same as np.cross(dircosX,dircosY)
+    transvec[:2]*=-1 
+
+    nii_orientation_matrix=np.vstack([dircosZ,dircosY,dircosX])
+    nii_orientation_matrix[:,2]*=-1 #hacky because i don't know why but testing to see if it works
+    norm = nii_orientation_matrix[0,:]
+    slice_orientation_pitch, _ = dicom_orientation_string(norm)
+
+    inplane_rot = calc_inplane_rot(nii_orientation_matrix,slice_orientation_pitch.split(' > ')[0])
+
+    return slice_orientation_pitch,inplane_rot,transvec

@@ -6,7 +6,7 @@ import os
 np.set_printoptions(suppress=True)
 from pathlib import Path
 import sys
-from voxalign.utils import check_external_tools, calc_inplane_rot, dicom_orientation_string
+from voxalign.utils import check_external_tools, calc_inplane_rot, dicom_orientation_string,calc_prescription_from_nifti
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QPushButton, QLabel, QTextEdit, QVBoxLayout, QFileDialog, QMessageBox
 )
@@ -68,10 +68,6 @@ class VoxAlignApp(QWidget):
         self.run_button = QPushButton("Run VoxAlign", self)
         self.run_button.clicked.connect(self.run_voxalign)
         layout.addWidget(self.run_button)
-
-        # Status label
-        self.status_label = QLabel("  ", self)
-        layout.addWidget(self.status_label)
 
         self.setLayout(layout)
 
@@ -168,50 +164,18 @@ class VoxAlignApp(QWidget):
                 aligned_spec.set_qform(new_affine,code='unknown')
                 nib.save(aligned_spec,f'{roi}_aligned.nii.gz')
 
-                dimX, dimY, dimZ = spec_nii.header['pixdim'][1], spec_nii.header['pixdim'][2], spec_nii.header['pixdim'][3]
-
-                # slice positioning in 3-D space
-                # nb: -1 for dir cosines gives consistent orientation between Nifti and DICOM in ITK-Snap
-                A = spec_nii.affine
-                rotmat,transvec = nib.affines.to_matvec(A)
-                dircosX = -1*rotmat[:3, 0] / dimX
-                dircosY = -1*rotmat[:3, 1] / dimY
-                dircosZ = rotmat[:3, 2] / dimZ #this is the same as np.cross(dircosX,dircosY)
-                transvec[:2]*=-1 
-
-                nii_orientation_matrix=np.vstack([dircosZ,dircosY,dircosX])
-                nii_orientation_matrix[:,2]*=-1 #hacky because i don't know why but seems to work
-                norm = nii_orientation_matrix[0,:]
-                slice_orientation_pitch, _ = dicom_orientation_string(norm)
-
-                inplane_rot = calc_inplane_rot(nii_orientation_matrix,slice_orientation_pitch.split(' > ')[0])
+                slice_orientation_pitch,inplane_rot,transvec = calc_prescription_from_nifti(spec_nii)
 
                 print(f"\nSess 1 {roi} \n/Orientation: {slice_orientation_pitch}")
                 print(f"In-plane rotation: {inplane_rot:.2f}")
                 print(f'Voxel Position: {transvec}')
 
-                #now do it for aligned sess 2 voxel
-                dimX, dimY, dimZ = aligned_spec.header['pixdim'][1], aligned_spec.header['pixdim'][2], aligned_spec.header['pixdim'][3]
-
-                # slice positioning in 3-D space
-                # nb: -1 for dir cosines gives consistent orientation between Nifti and DICOM in ITK-Snap
-                A = aligned_spec.affine
-                rotmat,transvec = nib.affines.to_matvec(A)
-                dircosX = -1*rotmat[:3, 0] / dimX
-                dircosY = -1*rotmat[:3, 1] / dimY
-                dircosZ = rotmat[:3, 2] / dimZ #this is the same as np.cross(dircosX,dircosY)
-                transvec[:2]*=-1 
-
-                nii_orientation_matrix=np.vstack([dircosZ,dircosY,dircosX])
-                nii_orientation_matrix[:,2]*=-1 #hacky because i don't know why but testing to see if it works
-                norm = nii_orientation_matrix[0,:]
-                slice_orientation_pitch, _ = dicom_orientation_string(norm)
-
-                inplane_rot = calc_inplane_rot(nii_orientation_matrix,slice_orientation_pitch.split(' > ')[0])
-
+                slice_orientation_pitch,inplane_rot,transvec = calc_prescription_from_nifti(aligned_spec)
                 # Define the file name based on the ROI
                 filename = f"{roi}_prescription.txt"
-                
+                print(f"\nSess 2 {roi} \nOrientation: {slice_orientation_pitch}")
+                print(f"In-plane rotation: {inplane_rot:.2f}")
+                print(f'Voxel Position: {transvec}')
                 try:
                     with open(filename, 'w') as file:
                         file.write(f"Sess 2 {roi} \nOrientation: {slice_orientation_pitch}\n")
@@ -221,17 +185,13 @@ class VoxAlignApp(QWidget):
                 except Exception as e:
                     print(f"Error writing to file: {e}")
 
-                print(f"\nSess 2 {roi} \nOrientation: {slice_orientation_pitch}")
-                print(f"In-plane rotation: {inplane_rot:.2f}")
-                print(f'Voxel Position: {transvec}')
-
             command = "fsleyes sess1_T1.nii sess1_svs/*.nii.gz sess2_T1.nii *aligned.nii.gz"
             result = subprocess.run(command, shell=True, capture_output=True, text=True)   
             print("\nVoxAlign process completed successfully.\n")
             
             # Create and display the success message box
             msg_box = QMessageBox()
-            msg_box.setIcon(QMessageBox.Information)
+            msg_box.setIcon(QMessageBox.NoIcon)
             msg_box.setWindowTitle("Success")
             msg_box.setText("VoxAlign process completed successfully!")
             msg_box.setStandardButtons(QMessageBox.Ok)
