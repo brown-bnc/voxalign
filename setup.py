@@ -8,13 +8,14 @@ setup(
         "numpy",
         "pydicom",
         "nibabel",
+        "PyQt5",
         "spec2nii",
         "dcm2niix"                         
         # Add any other dependencies here
     ],
     entry_points={
         'console_scripts': [
-            'run-voxalign=voxalign.main:run_voxalign',   # Entry point for running the script
+            'run-voxalign=voxalign.main:start_voxalign',   # Entry point for running the script
         ]
     },
     include_package_data=True,        # Include any additional data files

@@ -1,7 +1,5 @@
 import numpy as np
 import nibabel as nib
-import tkinter as tk
-from tkinter import filedialog, scrolledtext
 import glob
 import subprocess
 import os
@@ -9,248 +7,250 @@ np.set_printoptions(suppress=True)
 from pathlib import Path
 import sys
 from voxalign.utils import check_external_tools, calc_inplane_rot, dicom_orientation_string
+from PyQt5.QtWidgets import (
+    QApplication, QWidget, QPushButton, QLabel, QTextEdit, QVBoxLayout, QFileDialog, QMessageBox
+)
 
 
-# Variables to store selected paths
+# Global variables to store selected paths
 output_folder = ""
 session1_T1_dicom = ""
 session2_T1_dicom = ""
 selected_spectroscopy_files = []
 
+class VoxAlignApp(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.initUI()
 
-def select_output_folder():
-    global output_folder
-    output_folder = filedialog.askdirectory()
-    if output_folder:
-        output_label.config(state=tk.NORMAL)
-        output_label.delete(1.0, tk.END)
-        output_label.insert(tk.END, output_folder)
-        output_label.config(state=tk.DISABLED)
-    else:
-        output_label.config(state=tk.NORMAL)
-        output_label.delete(1.0, tk.END)
-        output_label.insert(tk.END, "No folder selected")
-        output_label.config(state=tk.DISABLED)
+    def initUI(self):
+        self.setWindowTitle("VoxAlign DICOM Selector")
+        self.setGeometry(100, 100, 800, 400)
+        layout = QVBoxLayout()
 
-def select_session1_T1_dicom():
-    global session1_T1_dicom
-    session1_T1_dicom = filedialog.askopenfilename(title="Select Session 1 T1 DICOM", filetypes=[("DICOM files", "*.dcm")])
-    if session1_T1_dicom:
-        session1_T1_label.config(state=tk.NORMAL)
-        session1_T1_label.delete(1.0, tk.END)
-        session1_T1_label.insert(tk.END, session1_T1_dicom)
-        session1_T1_label.config(state=tk.DISABLED)
-    else:
-        session1_T1_label.config(state=tk.NORMAL)
-        session1_T1_label.delete(1.0, tk.END)
-        session1_T1_label.insert(tk.END, "No file selected")
-        session1_T1_label.config(state=tk.DISABLED)
+        # Output folder selection
+        self.output_button = QPushButton("Select Output Folder", self)
+        self.output_button.clicked.connect(self.select_output_folder)
+        layout.addWidget(self.output_button)
 
-def select_session2_T1_dicom():
-    global session2_T1_dicom
-    session2_T1_dicom = filedialog.askopenfilename(title="Select Session 2 T1 DICOM", filetypes=[("DICOM files", "*.dcm")])
-    if session2_T1_dicom:
-        session2_T1_label.config(state=tk.NORMAL)
-        session2_T1_label.delete(1.0, tk.END)
-        session2_T1_label.insert(tk.END, session2_T1_dicom)
-        session2_T1_label.config(state=tk.DISABLED)
-    else:
-        session2_T1_label.config(state=tk.NORMAL)
-        session2_T1_label.delete(1.0, tk.END)
-        session2_T1_label.insert(tk.END, "No file selected")
-        session2_T1_label.config(state=tk.DISABLED)
+        self.output_label = QTextEdit(self)
+        self.output_label.setReadOnly(True)
+        layout.addWidget(self.output_label)
 
-def select_session1_spectroscopy_dicoms():
-    global selected_spectroscopy_files
-    new_files_selected = filedialog.askopenfilenames(title="Select Session 1 Spectroscopy DICOMs", filetypes=[("DICOM files", "*.dcm")])
-    
-    # Append new files to the existing list
-    if new_files_selected:
-        selected_spectroscopy_files.extend(new_files_selected)
-        
-        # Remove duplicates (optional)
-        selected_spectroscopy_files = list(set(selected_spectroscopy_files))
-        
-        session1_spec_label.config(state=tk.NORMAL)
-        session1_spec_label.delete(1.0, tk.END)
-        session1_spec_label.insert(tk.END, ', '.join(selected_spectroscopy_files))
-        session1_spec_label.config(state=tk.DISABLED)
-    else:
-        if not selected_spectroscopy_files:
-            session1_spec_label.config(state=tk.NORMAL)
-            session1_spec_label.delete(1.0, tk.END)
-            session1_spec_label.insert(tk.END, "No files selected")
-            session1_spec_label.config(state=tk.DISABLED)
-            
-def run_voxalign():
-    # this keeps them from accidentally clicking twice
-    run_button.config(state=tk.DISABLED)
+        # Session 1 T1 DICOM selection
+        self.session1_T1_button = QPushButton("Select Session 1 T1 DICOM", self)
+        self.session1_T1_button.clicked.connect(self.select_session1_T1_dicom)
+        layout.addWidget(self.session1_T1_button)
 
-    try:
-        check_external_tools()
+        self.session1_T1_label = QTextEdit(self)
+        self.session1_T1_label.setReadOnly(True)
+        layout.addWidget(self.session1_T1_label)
 
-        print("Running VoxAlign!")
-        print("\nOutput folder:", output_folder)
-        print("\nSession 1 T1 DICOM:", session1_T1_dicom)
-        print("\nSession 2 T1 DICOM:", session2_T1_dicom)
-        print("\nSession 1 Spectroscopy DICOMs:", selected_spectroscopy_files)
+        # Session 2 T1 DICOM selection
+        self.session2_T1_button = QPushButton("Select Session 2 T1 DICOM", self)
+        self.session2_T1_button.clicked.connect(self.select_session2_T1_dicom)
+        layout.addWidget(self.session2_T1_button)
 
-        os.chdir(output_folder)
+        self.session2_T1_label = QTextEdit(self)
+        self.session2_T1_label.setReadOnly(True)
+        layout.addWidget(self.session2_T1_label)
 
-        #convert session 1 T1 DICOM to NIFTI
-        command = f"dcm2niix -f sess1_T1 -o {output_folder} -s y {session1_T1_dicom}"
-        result = subprocess.run(command, shell=True, capture_output=True, text=True)
-        #skull strip session 1 T1
-        print("\n...\nSkull stripping session 1 T1 ...")
-        command = f"bet2 sess1_T1.nii sess1_T1_ss.nii"
-        result = subprocess.run(command, shell=True, capture_output=True, text=True)
+        # Session 1 Spectroscopy DICOMs selection
+        self.session1_spec_button = QPushButton("Add Session 1 Spectroscopy DICOMs", self)
+        self.session1_spec_button.clicked.connect(self.select_session1_spectroscopy_dicoms)
+        layout.addWidget(self.session1_spec_button)
 
-        # Convert session 2 T1 DICOM to NIFTI
-        command = f"dcm2niix -f sess2_T1 -o {output_folder} -s y {session2_T1_dicom}"
-        result = subprocess.run(command, shell=True, capture_output=True, text=True)
-        #skull strip session 2 T1
-        print("Skull stripping session 2 T1 ...")
-        command = f"bet2 sess2_T1.nii sess2_T1_ss.nii"
-        result = subprocess.run(command, shell=True, capture_output=True, text=True)
+        self.session1_spec_label = QTextEdit(self)
+        self.session1_spec_label.setReadOnly(True)
+        layout.addWidget(self.session1_spec_label)
 
-        # use flirt to register session 1 T1 to session 2 T1
-        print("Aligning session 1 T1 to session 2 T1 ...")
-        command = f"flirt -in sess1_T1_ss.nii.gz -ref sess2_T1_ss.nii.gz -out sess1_T1_aligned -omat sess1tosess2.mat -dof 6"
-        result = subprocess.run(command, shell=True, capture_output=True, text=True)
+        # Run VoxAlign button
+        self.run_button = QPushButton("Run VoxAlign", self)
+        self.run_button.clicked.connect(self.run_voxalign)
+        layout.addWidget(self.run_button)
 
-        # Convert session 1 spectroscopy DICOM(s)  to NIFTI
-        for dcm in selected_spectroscopy_files:
-            #File names can be specified with the -f option and output directories with the -o option.
-            command = f"spec2nii 'dicom' -o sess1_svs {dcm}"
+        # Status label
+        self.status_label = QLabel("  ", self)
+        layout.addWidget(self.status_label)
+
+        self.setLayout(layout)
+
+    def select_output_folder(self):
+        global output_folder
+        output_folder = QFileDialog.getExistingDirectory(self, "Select Output Folder")
+        if output_folder:
+            self.output_label.setText(output_folder)
+        else:
+            self.output_label.setText("No folder selected")
+
+    def select_session1_T1_dicom(self):
+        global session1_T1_dicom
+        session1_T1_dicom, _ = QFileDialog.getOpenFileName(self, "Select Session 1 T1 DICOM", "", "DICOM files (*.dcm)")
+        if session1_T1_dicom:
+            self.session1_T1_label.setText(session1_T1_dicom)
+        else:
+            self.session1_T1_label.setText("No file selected")
+
+    def select_session2_T1_dicom(self):
+        global session2_T1_dicom
+        session2_T1_dicom, _ = QFileDialog.getOpenFileName(self, "Select Session 2 T1 DICOM", "", "DICOM files (*.dcm)")
+        if session2_T1_dicom:
+            self.session2_T1_label.setText(session2_T1_dicom)
+        else:
+            self.session2_T1_label.setText("No file selected")
+
+    def select_session1_spectroscopy_dicoms(self):
+        global selected_spectroscopy_files
+        files, _ = QFileDialog.getOpenFileNames(self, "Select Session 1 Spectroscopy DICOMs", "", "DICOM files (*.dcm)")
+        if files:
+            selected_spectroscopy_files.extend(files)
+            selected_spectroscopy_files = list(set(selected_spectroscopy_files))  # Remove duplicates
+            self.session1_spec_label.setText(", ".join(selected_spectroscopy_files))
+        else:
+            self.session1_spec_label.setText("No files selected")
+
+    def run_voxalign(self):
+        self.run_button.setDisabled(True)
+        try:
+            check_external_tools()
+
+            print("Running VoxAlign!")
+            print("\nOutput folder:", output_folder)
+            print("\nSession 1 T1 DICOM:", session1_T1_dicom)
+            print("\nSession 2 T1 DICOM:", session2_T1_dicom)
+            print("\nSession 1 Spectroscopy DICOMs:", selected_spectroscopy_files)
+
+            os.chdir(output_folder)
+
+            #convert session 1 T1 DICOM to NIFTI
+            command = f"dcm2niix -f sess1_T1 -o {output_folder} -s y {session1_T1_dicom}"
+            result = subprocess.run(command, shell=True, capture_output=True, text=True)
+            #skull strip session 1 T1
+            print("\n...\nSkull stripping session 1 T1 ...")
+            command = f"bet2 sess1_T1.nii sess1_T1_ss.nii"
             result = subprocess.run(command, shell=True, capture_output=True, text=True)
 
-        spec_niftis = glob.glob('sess1_svs/*')
+            # Convert session 2 T1 DICOM to NIFTI
+            command = f"dcm2niix -f sess2_T1 -o {output_folder} -s y {session2_T1_dicom}"
+            result = subprocess.run(command, shell=True, capture_output=True, text=True)
+            #skull strip session 2 T1
+            print("Skull stripping session 2 T1 ...")
+            command = f"bet2 sess2_T1.nii sess2_T1_ss.nii"
+            result = subprocess.run(command, shell=True, capture_output=True, text=True)
 
-        for nii in spec_niftis:
-            roi=Path(nii.removesuffix(''.join(Path(nii).suffixes))).stem
-            spec_nii = nib.load(nii)
-            sess1_nii = nib.load('sess1_T1.nii')
-            sess2_nii = nib.load('sess2_T1.nii')
+            # use flirt to register session 1 T1 to session 2 T1
+            print("Aligning session 1 T1 to session 2 T1 ...")
+            command = f"flirt -in sess1_T1_ss.nii.gz -ref sess2_T1_ss.nii.gz -out sess1_T1_aligned -omat sess1tosess2.mat -dof 6"
+            result = subprocess.run(command, shell=True, capture_output=True, text=True)
 
-            sess1to2affine = np.loadtxt('sess1tosess2.mat')
+            # Convert session 1 spectroscopy DICOM(s)  to NIFTI
+            for dcm in selected_spectroscopy_files:
+                #File names can be specified with the -f option and output directories with the -o option.
+                command = f"spec2nii 'dicom' -o sess1_svs {dcm}"
+                result = subprocess.run(command, shell=True, capture_output=True, text=True)
 
-            # combine affine transforms to go from sess 1 T1 -> sess 2 T1 and tweak a bit in case autoalign didn't do the trick
-            transform = sess1to2affine @ sess2_nii.affine @ np.linalg.inv(sess1_nii.affine) 
-            new_affine = transform @ spec_nii.affine 
+            spec_niftis = glob.glob('sess1_svs/*')
 
-            aligned_spec = nib.load(nii) #start with session 1 spec nifti
-            aligned_spec.set_sform(new_affine,code='aligned')
-            aligned_spec.set_qform(new_affine,code='unknown')
-            nib.save(aligned_spec,f'{roi}_aligned.nii.gz')
+            for nii in spec_niftis:
+                roi=Path(nii.removesuffix(''.join(Path(nii).suffixes))).stem
+                spec_nii = nib.load(nii)
+                sess1_nii = nib.load('sess1_T1.nii')
+                sess2_nii = nib.load('sess2_T1.nii')
 
-            dimX, dimY, dimZ = spec_nii.header['pixdim'][1], spec_nii.header['pixdim'][2], spec_nii.header['pixdim'][3]
+                sess1to2affine = np.loadtxt('sess1tosess2.mat')
 
-            # slice positioning in 3-D space
-            # nb: -1 for dir cosines gives consistent orientation between Nifti and DICOM in ITK-Snap
-            A = spec_nii.affine
-            rotmat,transvec = nib.affines.to_matvec(A)
-            dircosX = -1*rotmat[:3, 0] / dimX
-            dircosY = -1*rotmat[:3, 1] / dimY
-            dircosZ = rotmat[:3, 2] / dimZ #this is the same as np.cross(dircosX,dircosY)
-            transvec[:2]*=-1 
+                # combine affine transforms to go from sess 1 T1 -> sess 2 T1 and tweak a bit in case autoalign didn't do the trick
+                transform = sess1to2affine @ sess2_nii.affine @ np.linalg.inv(sess1_nii.affine) 
+                new_affine = transform @ spec_nii.affine 
 
-            nii_orientation_matrix=np.vstack([dircosZ,dircosY,dircosX])
-            nii_orientation_matrix[:,2]*=-1 #hacky because i don't know why but seems to work
-            norm = nii_orientation_matrix[0,:]
-            slice_orientation_pitch, _ = dicom_orientation_string(norm)
+                aligned_spec = nib.load(nii) #start with session 1 spec nifti
+                aligned_spec.set_sform(new_affine,code='aligned')
+                aligned_spec.set_qform(new_affine,code='unknown')
+                nib.save(aligned_spec,f'{roi}_aligned.nii.gz')
 
-            inplane_rot = calc_inplane_rot(nii_orientation_matrix,slice_orientation_pitch.split(' > ')[0])
+                dimX, dimY, dimZ = spec_nii.header['pixdim'][1], spec_nii.header['pixdim'][2], spec_nii.header['pixdim'][3]
 
-            print(f"\nSess 1 {roi} \n/Orientation: {slice_orientation_pitch}")
-            print(f"In-plane rotation: {inplane_rot:.2f}")
-            print(f'Voxel Position: {transvec}')
+                # slice positioning in 3-D space
+                # nb: -1 for dir cosines gives consistent orientation between Nifti and DICOM in ITK-Snap
+                A = spec_nii.affine
+                rotmat,transvec = nib.affines.to_matvec(A)
+                dircosX = -1*rotmat[:3, 0] / dimX
+                dircosY = -1*rotmat[:3, 1] / dimY
+                dircosZ = rotmat[:3, 2] / dimZ #this is the same as np.cross(dircosX,dircosY)
+                transvec[:2]*=-1 
 
-            #now do it for aligned sess 2 voxel
-            dimX, dimY, dimZ = aligned_spec.header['pixdim'][1], aligned_spec.header['pixdim'][2], aligned_spec.header['pixdim'][3]
+                nii_orientation_matrix=np.vstack([dircosZ,dircosY,dircosX])
+                nii_orientation_matrix[:,2]*=-1 #hacky because i don't know why but seems to work
+                norm = nii_orientation_matrix[0,:]
+                slice_orientation_pitch, _ = dicom_orientation_string(norm)
 
-            # slice positioning in 3-D space
-            # nb: -1 for dir cosines gives consistent orientation between Nifti and DICOM in ITK-Snap
-            A = aligned_spec.affine
-            rotmat,transvec = nib.affines.to_matvec(A)
-            dircosX = -1*rotmat[:3, 0] / dimX
-            dircosY = -1*rotmat[:3, 1] / dimY
-            dircosZ = rotmat[:3, 2] / dimZ #this is the same as np.cross(dircosX,dircosY)
-            transvec[:2]*=-1 
+                inplane_rot = calc_inplane_rot(nii_orientation_matrix,slice_orientation_pitch.split(' > ')[0])
 
-            nii_orientation_matrix=np.vstack([dircosZ,dircosY,dircosX])
-            nii_orientation_matrix[:,2]*=-1 #hacky because i don't know why but testing to see if it works
-            norm = nii_orientation_matrix[0,:]
-            slice_orientation_pitch, _ = dicom_orientation_string(norm)
+                print(f"\nSess 1 {roi} \n/Orientation: {slice_orientation_pitch}")
+                print(f"In-plane rotation: {inplane_rot:.2f}")
+                print(f'Voxel Position: {transvec}')
 
-            inplane_rot = calc_inplane_rot(nii_orientation_matrix,slice_orientation_pitch.split(' > ')[0])
+                #now do it for aligned sess 2 voxel
+                dimX, dimY, dimZ = aligned_spec.header['pixdim'][1], aligned_spec.header['pixdim'][2], aligned_spec.header['pixdim'][3]
 
-            # Define the file name based on the ROI
-            filename = f"{roi}_prescription.txt"
+                # slice positioning in 3-D space
+                # nb: -1 for dir cosines gives consistent orientation between Nifti and DICOM in ITK-Snap
+                A = aligned_spec.affine
+                rotmat,transvec = nib.affines.to_matvec(A)
+                dircosX = -1*rotmat[:3, 0] / dimX
+                dircosY = -1*rotmat[:3, 1] / dimY
+                dircosZ = rotmat[:3, 2] / dimZ #this is the same as np.cross(dircosX,dircosY)
+                transvec[:2]*=-1 
+
+                nii_orientation_matrix=np.vstack([dircosZ,dircosY,dircosX])
+                nii_orientation_matrix[:,2]*=-1 #hacky because i don't know why but testing to see if it works
+                norm = nii_orientation_matrix[0,:]
+                slice_orientation_pitch, _ = dicom_orientation_string(norm)
+
+                inplane_rot = calc_inplane_rot(nii_orientation_matrix,slice_orientation_pitch.split(' > ')[0])
+
+                # Define the file name based on the ROI
+                filename = f"{roi}_prescription.txt"
+                
+                try:
+                    with open(filename, 'w') as file:
+                        file.write(f"Sess 2 {roi} \nOrientation: {slice_orientation_pitch}\n")
+                        file.write(f"In-plane rotation: {inplane_rot:.2f}\n")
+                        file.write(f'Voxel Position: {transvec}\n')
+                    print(f"Data written to {filename}")
+                except Exception as e:
+                    print(f"Error writing to file: {e}")
+
+                print(f"\nSess 2 {roi} \nOrientation: {slice_orientation_pitch}")
+                print(f"In-plane rotation: {inplane_rot:.2f}")
+                print(f'Voxel Position: {transvec}')
+
+            command = "fsleyes sess1_T1.nii sess1_svs/*.nii.gz sess2_T1.nii *aligned.nii.gz"
+            result = subprocess.run(command, shell=True, capture_output=True, text=True)   
+            print("\nVoxAlign process completed successfully.\n")
             
-            try:
-                with open(filename, 'w') as file:
-                    file.write(f"Sess 2 {roi} \nOrientation: {slice_orientation_pitch}\n")
-                    file.write(f"In-plane rotation: {inplane_rot:.2f}\n")
-                    file.write(f'Voxel Position: {transvec}\n')
-                print(f"Data written to {filename}")
-            except Exception as e:
-                print(f"Error writing to file: {e}")
+            # Create and display the success message box
+            msg_box = QMessageBox()
+            msg_box.setIcon(QMessageBox.Information)
+            msg_box.setWindowTitle("Success")
+            msg_box.setText("VoxAlign process completed successfully!")
+            msg_box.setStandardButtons(QMessageBox.Ok)
+            
+            # If the user clicks "OK", close the application
+            if msg_box.exec() == QMessageBox.Ok:
+                self.close()  # Close the GUI window
+                sys.exit()    # Exit the application
 
-            print(f"\nSess 2 {roi} \nOrientation: {slice_orientation_pitch}")
-            print(f"In-plane rotation: {inplane_rot:.2f}")
-            print(f'Voxel Position: {transvec}')
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"An error occurred: {str(e)}")
+            print(f"An error occurred: {e}")
 
-        command = "fsleyes sess1_T1.nii sess1_svs/*.nii.gz sess2_T1.nii *aligned.nii.gz"
-        result = subprocess.run(command, shell=True, capture_output=True, text=True)   
+        finally:
+            self.run_button.setDisabled(False)
 
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        # Re-enable the button if an error occurs
-        run_button.config(state=tk.NORMAL)
-        return
-
-    print("\nVoxAlign process completed successfully.\n")
-
-    # Close the Tkinter window
-    root.destroy()
-    
-    # Exit the program after closing the window
-    sys.exit()
-
-# Create the main window
-root = tk.Tk()
-root.title("VoxAlign DICOM Selector")
-root.geometry("800x400")  # Set a fixed size for the window to prevent it from becoming too large
-
-# Output folder selection
-output_button = tk.Button(root, text="Select Output Folder", command=select_output_folder)
-output_button.pack(pady=5)
-output_label = scrolledtext.ScrolledText(root, height=2, width=70, wrap=tk.WORD, state=tk.DISABLED)
-output_label.pack(pady=5)
-
-# Session 1 T1 DICOM selection
-session1_T1_button = tk.Button(root, text="Select Session 1 T1 DICOM", command=select_session1_T1_dicom)
-session1_T1_button.pack(pady=5)
-session1_T1_label = scrolledtext.ScrolledText(root, height=2, width=70, wrap=tk.WORD, state=tk.DISABLED)
-session1_T1_label.pack(pady=5)
-
-# Session 2 T1 DICOM selection
-session2_T1_button = tk.Button(root, text="Select Session 2 T1 DICOM", command=select_session2_T1_dicom)
-session2_T1_button.pack(pady=5)
-session2_T1_label = scrolledtext.ScrolledText(root, height=2, width=70, wrap=tk.WORD, state=tk.DISABLED)
-session2_T1_label.pack(pady=5)
-
-# Session 1 Spectroscopy DICOMs selection
-session1_spec_button = tk.Button(root, text="Add Session 1 Spectroscopy DICOMs", command=select_session1_spectroscopy_dicoms)
-session1_spec_button.pack(pady=5)
-session1_spec_label = scrolledtext.ScrolledText(root, height=4, width=70, wrap=tk.WORD, state=tk.DISABLED)
-session1_spec_label.pack(pady=5)
-
-# "Run VoxAlign" button
-run_button = tk.Button(root, text="Run VoxAlign", command=run_voxalign)
-run_button.pack(pady=5)
-status_label = tk.Label(root, text="  ")
-status_label.pack()
-
-# Start the Tkinter event loop
-root.mainloop()
+def start_voxalign():
+    """Function to initialize and run the VoxAlign PyQt application."""
+    app = QApplication(sys.argv)
+    window = VoxAlignApp()
+    window.show()
+    sys.exit(app.exec_())
