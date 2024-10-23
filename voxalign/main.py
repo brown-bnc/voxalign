@@ -6,9 +6,9 @@ import os
 np.set_printoptions(suppress=True)
 from pathlib import Path
 import sys
-from voxalign.utils import check_external_tools, calc_inplane_rot, dicom_orientation_string,calc_prescription_from_nifti
+from voxalign.utils import check_external_tools, calc_prescription_from_nifti
 from PyQt5.QtWidgets import (
-    QApplication, QWidget, QPushButton, QLabel, QTextEdit, QVBoxLayout, QFileDialog, QMessageBox
+    QApplication, QWidget, QPushButton, QTextEdit, QVBoxLayout, QFileDialog, QMessageBox
 )
 
 
@@ -160,33 +160,43 @@ class VoxAlignApp(QWidget):
                 new_affine = transform @ spec_nii.affine 
 
                 aligned_spec = nib.load(nii) #start with session 1 spec nifti
-                aligned_spec.set_sform(new_affine,code='aligned')
-                aligned_spec.set_qform(new_affine,code='unknown')
+                aligned_spec.set_sform(new_affine,code='unknown')#code='aligned')
+                aligned_spec.set_qform(new_affine,code='scanner')
                 nib.save(aligned_spec,f'{roi}_aligned.nii.gz')
 
-                slice_orientation_pitch,inplane_rot,transvec = calc_prescription_from_nifti(spec_nii)
+                slice_orientation_pitch,inplane_rot = calc_prescription_from_nifti(spec_nii)
+                transvec = np.round(spec_nii.affine[0:3,3],2)
+                print("\n-------------")
+                print(f"ROI: {roi}")
+                print("-------------")
+                print(f"PREVIOUS")
+                print(f'Position: {transvec}')
+                print(f"Orientation: {slice_orientation_pitch}")
+                print(f"Rotation: {inplane_rot:.2f}")
 
-                print(f"\nSess 1 {roi} \n/Orientation: {slice_orientation_pitch}")
-                print(f"In-plane rotation: {inplane_rot:.2f}")
-                print(f'Voxel Position: {transvec}')
+                slice_orientation_pitch,inplane_rot = calc_prescription_from_nifti(aligned_spec)
+                transvec = np.round(aligned_spec.affine[0:3,3],2)
 
-                slice_orientation_pitch,inplane_rot,transvec = calc_prescription_from_nifti(aligned_spec)
                 # Define the file name based on the ROI
                 filename = f"{roi}_prescription.txt"
-                print(f"\nSess 2 {roi} \nOrientation: {slice_orientation_pitch}")
-                print(f"In-plane rotation: {inplane_rot:.2f}")
-                print(f'Voxel Position: {transvec}')
+                print(f"\nTODAY")
+                print(f'Position: {transvec}')
+                print(f"Orientation: {slice_orientation_pitch}")
+                print(f"Rotation: {inplane_rot:.2f}")
+
                 try:
                     with open(filename, 'w') as file:
-                        file.write(f"Sess 2 {roi} \nOrientation: {slice_orientation_pitch}\n")
-                        file.write(f"In-plane rotation: {inplane_rot:.2f}\n")
-                        file.write(f'Voxel Position: {transvec}\n')
-                    print(f"Data written to {filename}")
+                        file.write(f"NEW {roi} PRESCRIPTION\n")
+                        file.write(f'Position: {transvec}\n')
+                        file.write(f"Orientation: {slice_orientation_pitch}\n")
+                        file.write(f"Rotation: {inplane_rot:.2f}\n")
+                    print(f"Prescription written to {filename}")
+                    print("-------------\n")
                 except Exception as e:
                     print(f"Error writing to file: {e}")
 
-            command = "fsleyes sess1_T1.nii sess1_svs/*.nii.gz sess2_T1.nii *aligned.nii.gz"
-            result = subprocess.run(command, shell=True, capture_output=True, text=True)   
+            command = "fsleyes --displaySpace world sess1_T1.nii sess1_svs/*.nii.gz sess2_T1.nii *aligned.nii.gz"
+            process = subprocess.Popen(command, shell=True)
             print("\nVoxAlign process completed successfully.\n")
             
             # Create and display the success message box

@@ -133,14 +133,14 @@ def dicom_orientation_string(normal):
 
         else:
             # [IDL] SINGLE-OBLIQUE:
-            final_angle = "%s > %s %.3f" % \
+            final_angle = "%s > %s %.2f" % \
                     (orientations[principal], orientations[secondary],
                      (-1 * angle_1)
                     )
             final_orientation = orientations[principal] + '-' + orientations[secondary]
     else:
         # [IDL] DOUBLE-OBLIQUE:
-        final_angle = "%s > %s %.3f > %s %.3f" % \
+        final_angle = "%s > %s %.2f > %s %.2f" % \
                 (orientations[principal], orientations[secondary],
                  (-1 * angle_1), orientations[ternary], (-1 * angle_2))
         final_orientation = "%s-%s-%s" % \
@@ -150,16 +150,16 @@ def dicom_orientation_string(normal):
     return final_angle, final_orientation
 
 def calc_prescription_from_nifti(nii):
+    # adapted from https://github.com/tomaroberts/nii2dcm/blob/b03b4aacce25eeb6a00756bdb47365034dced787/nii2dcm/nii.py
     dimX, dimY, dimZ = nii.header['pixdim'][1], nii.header['pixdim'][2], nii.header['pixdim'][3]
 
     # slice positioning in 3-D space
     # nb: -1 for dir cosines gives consistent orientation between Nifti and DICOM in ITK-Snap
     A = nii.affine
     rotmat,transvec = nib.affines.to_matvec(A)
-    dircosX = -1*rotmat[:3, 0] / dimX
-    dircosY = -1*rotmat[:3, 1] / dimY
+    dircosX = -1*rotmat[:3, 0] / dimX 
+    dircosY = -1*rotmat[:3, 1] / dimY 
     dircosZ = rotmat[:3, 2] / dimZ #this is the same as np.cross(dircosX,dircosY)
-    transvec[:2]*=-1 
 
     nii_orientation_matrix=np.vstack([dircosZ,dircosY,dircosX])
     nii_orientation_matrix[:,2]*=-1 #hacky because i don't know why but testing to see if it works
@@ -168,4 +168,4 @@ def calc_prescription_from_nifti(nii):
 
     inplane_rot = calc_inplane_rot(nii_orientation_matrix,slice_orientation_pitch.split(' > ')[0])
 
-    return slice_orientation_pitch,inplane_rot,transvec
+    return slice_orientation_pitch,inplane_rot
