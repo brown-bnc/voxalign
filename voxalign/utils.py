@@ -167,7 +167,7 @@ def calc_prescription_from_nifti(nii):
     slice_orientation_pitch, _ = dicom_orientation_string(norm)
     inplane_rot = calc_inplane_rot(nii_orientation_matrix,slice_orientation_pitch.split(' > ')[0])
 
-    return slice_orientation_pitch,inplane_rot
+    return slice_orientation_pitch,inplane_rot,[int(np.rint(dimX)), int(np.rint(dimY)), int(np.rint(dimZ))]
 
 def convert_signs_to_letters(transvec):
     directions=[['L','R'],['P','A'],['F','H']]
