@@ -6,7 +6,7 @@ import os
 np.set_printoptions(suppress=True)
 from pathlib import Path
 import sys
-from voxalign.utils import check_external_tools, calc_prescription_from_nifti
+from voxalign.utils import check_external_tools, calc_prescription_from_nifti, convert_signs_to_letters
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QPushButton, QTextEdit, QVBoxLayout, QFileDialog, QMessageBox
 )
@@ -165,7 +165,7 @@ class VoxAlignApp(QWidget):
                 nib.save(aligned_spec,f'{roi}_aligned.nii.gz')
 
                 slice_orientation_pitch,inplane_rot = calc_prescription_from_nifti(spec_nii)
-                transvec = np.round(spec_nii.affine[0:3,3],2)
+                transvec = convert_signs_to_letters(np.round(spec_nii.affine[0:3,3],1))
                 print("\n-------------")
                 print(f"ROI: {roi}")
                 print("-------------")
@@ -175,7 +175,7 @@ class VoxAlignApp(QWidget):
                 print(f"Rotation: {inplane_rot:.2f}")
 
                 slice_orientation_pitch,inplane_rot = calc_prescription_from_nifti(aligned_spec)
-                transvec = np.round(aligned_spec.affine[0:3,3],2)
+                transvec = convert_signs_to_letters(np.round(aligned_spec.affine[0:3,3],1))
 
                 # Define the file name based on the ROI
                 filename = f"{roi}_prescription.txt"

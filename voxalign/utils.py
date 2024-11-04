@@ -31,15 +31,15 @@ def check_external_tools():
 def calc_inplane_rot(orientation_matrix, vox_orient):
     norm = orientation_matrix[0,:]
     phase = np.empty(3)
-    if vox_orient=='Tra': #for transversal voxel orientation, the phase reference vector lies in the sagittal plane
+    if vox_orient[0]=='T': #for transversal voxel orientation, the phase reference vector lies in the sagittal plane
         phase[0]=0
         phase[1]=norm[2]*np.sqrt(1/(norm[1]*norm[1]+norm[2]*norm[2]))
         phase[2]=-norm[1]*np.sqrt(1/(norm[1]*norm[1]+norm[2]*norm[2]))
-    elif vox_orient=='Cor': #for coronal voxel orientation, the phase reference vector lies in the transversal plane
+    elif vox_orient[0]=='C': #for coronal voxel orientation, the phase reference vector lies in the transversal plane
         phase[0]=norm[1]*np.sqrt(1/(norm[0]*norm[0]+norm[1]*norm[1]))
         phase[1]=-norm[0]*np.sqrt(1/(norm[0]*norm[0]+norm[1]*norm[1]))
         phase[2]=0
-    elif vox_orient=='Sag': #for sagittal voxel orientation, the phase reference vector lies in the transversal plane
+    elif vox_orient[0]=='S': #for sagittal voxel orientation, the phase reference vector lies in the transversal plane
         phase[0]=-norm[1]*np.sqrt(1/(norm[0]*norm[0]+norm[1]*norm[1]))
         phase[1]=norm[0]*np.sqrt(1/(norm[0]*norm[0]+norm[1]*norm[1]))
         phase[2]=0
@@ -68,7 +68,7 @@ def dicom_orientation_string(normal):
     """
     # docstring paraphrases IDL comments
     TOLERANCE = 1.e-4
-    orientations = ('Sag', 'Cor', 'Tra')
+    orientations = ('Sagittal', 'Coronal', 'Transverse')
 
     final_angle = ""
     final_orientation = ""
@@ -116,14 +116,14 @@ def dicom_orientation_string(normal):
     # [IDL] SIEMENS notation requires modifications IF principal dir. indxs SAG !
     # [PS] In IDL, indxs is the name of the variable that is "secondary" here.
     #      Even with that substitution, I don't understand the comment above.
-    if not principal:
-        if abs(angle_1) > 0:
-            sign1 = angle_1 / abs(angle_1)
-        else:
-            sign1 = 1.0
+    # if not principal:
+    #     if abs(angle_1) > 0:
+    #         sign1 = angle_1 / abs(angle_1)
+    #     else:
+    #         sign1 = 1.0
 
-        angle_1 -= (sign1 * 180.0)
-        angle_2 *= -1
+    #     angle_1 -= (sign1 * 180.0)
+    #     angle_2 *= -1
     
     if (abs(angle_2) < TOLERANCE) or (abs(abs(angle_2) - 180) < TOLERANCE):
         if (abs(angle_1) < TOLERANCE) or (abs(abs(angle_1) - 180) < TOLERANCE):
@@ -133,16 +133,16 @@ def dicom_orientation_string(normal):
 
         else:
             # [IDL] SINGLE-OBLIQUE:
-            final_angle = "%s > %s %.2f" % \
-                    (orientations[principal], orientations[secondary],
+            final_angle = "%s > %s%.1f" % \
+                    (orientations[principal][0], orientations[secondary][0],
                      (-1 * angle_1)
                     )
             final_orientation = orientations[principal] + '-' + orientations[secondary]
     else:
         # [IDL] DOUBLE-OBLIQUE:
-        final_angle = "%s > %s %.2f > %s %.2f" % \
-                (orientations[principal], orientations[secondary],
-                 (-1 * angle_1), orientations[ternary], (-1 * angle_2))
+        final_angle = "%s > %s%.1f > %s%.1f" % \
+                (orientations[principal][0], orientations[secondary][0],
+                 (-1 * angle_1), orientations[ternary][0], (-1 * angle_2))
         final_orientation = "%s-%s-%s" % \
                 (orientations[principal], orientations[secondary],
                  orientations[ternary])
@@ -165,7 +165,19 @@ def calc_prescription_from_nifti(nii):
     nii_orientation_matrix[:,2]*=-1 #hacky because i don't know why but testing to see if it works
     norm = nii_orientation_matrix[0,:]
     slice_orientation_pitch, _ = dicom_orientation_string(norm)
-
     inplane_rot = calc_inplane_rot(nii_orientation_matrix,slice_orientation_pitch.split(' > ')[0])
 
     return slice_orientation_pitch,inplane_rot
+
+def convert_signs_to_letters(transvec):
+    directions=[['L','R'],['P','A'],['F','H']]
+    lettervec = []
+    for axis,t in enumerate(transvec):
+        if t < 0:
+            dir = directions[axis][0]
+        else:
+            dir = directions[axis][1]
+        lettervec.append(f"{dir}{abs(t)}")
+    pos = ' '.join(lettervec)
+    return pos
+
