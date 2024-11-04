@@ -121,8 +121,7 @@ def dicom_orientation_string(normal):
     #         sign1 = angle_1 / abs(angle_1)
     #     else:
     #         sign1 = 1.0
-
-    #     angle_1 -= (sign1 * 180.0)
+    #     angle_1 -= (sign1 * 180.0)        
     #     angle_2 *= -1
     
     if (abs(angle_2) < TOLERANCE) or (abs(abs(angle_2) - 180) < TOLERANCE):
