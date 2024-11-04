@@ -116,14 +116,13 @@ def dicom_orientation_string(normal):
     # [IDL] SIEMENS notation requires modifications IF principal dir. indxs SAG !
     # [PS] In IDL, indxs is the name of the variable that is "secondary" here.
     #      Even with that substitution, I don't understand the comment above.
-    if not principal:
-        if abs(angle_1) > 0:
-            sign1 = angle_1 / abs(angle_1)
-        else:
-            sign1 = 1.0
-
-        angle_1 -= (sign1 * 180.0)
-        angle_2 *= -1
+    # if not principal:
+    #     if abs(angle_1) > 0:
+    #         sign1 = angle_1 / abs(angle_1)
+    #     else:
+    #         sign1 = 1.0
+    #     angle_1 -= (sign1 * 180.0)        
+    #     angle_2 *= -1
     
     if (abs(angle_2) < TOLERANCE) or (abs(abs(angle_2) - 180) < TOLERANCE):
         if (abs(angle_1) < TOLERANCE) or (abs(abs(angle_1) - 180) < TOLERANCE):
