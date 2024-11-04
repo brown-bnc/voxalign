@@ -164,7 +164,7 @@ class VoxAlignApp(QWidget):
                 aligned_spec.set_qform(new_affine,code='scanner')
                 nib.save(aligned_spec,f'{roi}_aligned.nii.gz')
 
-                slice_orientation_pitch,inplane_rot = calc_prescription_from_nifti(spec_nii)
+                slice_orientation_pitch,inplane_rot,[dimX,dimY,dimZ] = calc_prescription_from_nifti(spec_nii)
                 transvec = convert_signs_to_letters(np.round(spec_nii.affine[0:3,3],1))
                 print("\n-------------")
                 print(f"ROI: {roi}")
@@ -172,9 +172,10 @@ class VoxAlignApp(QWidget):
                 print(f"PREVIOUS")
                 print(f'Position: {transvec}')
                 print(f"Orientation: {slice_orientation_pitch}")
-                print(f"Rotation: {inplane_rot:.2f}")
+                print(f"Rotation: {inplane_rot:.2f} deg")
+                print(f"Dimensions: {dimX} mm x {dimY} mm x {dimZ} mm")
 
-                slice_orientation_pitch,inplane_rot = calc_prescription_from_nifti(aligned_spec)
+                slice_orientation_pitch,inplane_rot,[dimX,dimY,dimZ] = calc_prescription_from_nifti(aligned_spec)
                 transvec = convert_signs_to_letters(np.round(aligned_spec.affine[0:3,3],1))
 
                 # Define the file name based on the ROI
@@ -182,14 +183,16 @@ class VoxAlignApp(QWidget):
                 print(f"\nTODAY")
                 print(f'Position: {transvec}')
                 print(f"Orientation: {slice_orientation_pitch}")
-                print(f"Rotation: {inplane_rot:.2f}")
+                print(f"Rotation: {inplane_rot:.2f} deg")
+                print(f"Dimensions: {dimX} mm x {dimY} mm x {dimZ} mm")
 
                 try:
                     with open(filename, 'w') as file:
                         file.write(f"NEW {roi} PRESCRIPTION\n")
                         file.write(f'Position: {transvec}\n')
                         file.write(f"Orientation: {slice_orientation_pitch}\n")
-                        file.write(f"Rotation: {inplane_rot:.2f}\n")
+                        file.write(f"Rotation: {inplane_rot:.2f} deg\n")
+                        file.write(f"Dimensions: {dimX} mm x {dimY} mm x {dimZ} mm")
                     print(f"Prescription written to {filename}")
                     print("-------------\n")
                 except Exception as e:
