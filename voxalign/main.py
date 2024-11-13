@@ -6,7 +6,7 @@ import os
 np.set_printoptions(suppress=True)
 from pathlib import Path
 import sys
-from voxalign.utils import check_external_tools, calc_prescription_from_nifti, convert_signs_to_letters
+from voxalign.utils import check_external_tools, calc_prescription_from_nifti, convert_signs_to_letters, get_unique_filename
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QPushButton, QTextEdit, QVBoxLayout, QFileDialog, QMessageBox
 )
@@ -100,7 +100,7 @@ class VoxAlignApp(QWidget):
         files, _ = QFileDialog.getOpenFileNames(self, "Select Session 1 Spectroscopy DICOMs", "", "DICOM files (*.dcm)")
         if files:
             selected_spectroscopy_files.extend(files)
-            selected_spectroscopy_files = list(set(selected_spectroscopy_files))  # Remove duplicates
+            selected_spectroscopy_files = sorted(list(set(selected_spectroscopy_files)))  # Remove duplicates
             self.session1_spec_label.setText(", ".join(selected_spectroscopy_files))
         else:
             self.session1_spec_label.setText("No files selected")
@@ -139,17 +139,26 @@ class VoxAlignApp(QWidget):
             command = f"flirt -in sess1_T1_ss.nii.gz -ref sess2_T1_ss.nii.gz -out sess1_T1_aligned -omat sess1tosess2.mat -dof 6"
             result = subprocess.run(command, shell=True, capture_output=True, text=True)
 
-            # Convert session 1 spectroscopy DICOM(s)  to NIFTI
+            # Convert session 1 spectroscopy DICOM(s)  to NIFTI & transform
             for dcm in selected_spectroscopy_files:
                 #File names can be specified with the -f option and output directories with the -o option.
-                command = f"spec2nii 'dicom' -o sess1_svs {dcm}"
+                command = f"spec2nii 'dicom' -o sess1_svs/tmp {dcm}"
                 result = subprocess.run(command, shell=True, capture_output=True, text=True)
 
-            spec_niftis = glob.glob('sess1_svs/*')
+                #start by placing spec niftis in a temp folder so we can make sure not to overwrite
+                tmp_nifti = glob.glob(f'{output_folder}/sess1_svs/tmp/*')[0]
+                suffix = ''.join(Path(tmp_nifti).suffixes)
+                roi=Path(tmp_nifti.removesuffix(suffix)).stem
+                #if a file already exists, append _2, _3, etc.
+                new_filename = get_unique_filename(f'sess1_svs/{roi}',suffix)
+                roi=Path(new_filename.removesuffix(suffix)).stem
 
-            for nii in spec_niftis:
-                roi=Path(nii.removesuffix(''.join(Path(nii).suffixes))).stem
-                spec_nii = nib.load(nii)
+                command = f"mv {tmp_nifti} {new_filename}"
+                result = subprocess.run(command, shell=True, capture_output=True, text=True)
+                command = "rm -r sess1_svs/tmp"
+                result = subprocess.run(command, shell=True, capture_output=True, text=True)
+
+                spec_nii = nib.load(new_filename)
                 sess1_nii = nib.load('sess1_T1.nii')
                 sess2_nii = nib.load('sess2_T1.nii')
 
@@ -159,9 +168,10 @@ class VoxAlignApp(QWidget):
                 transform = sess1to2affine @ sess2_nii.affine @ np.linalg.inv(sess1_nii.affine) 
                 new_affine = transform @ spec_nii.affine 
 
-                aligned_spec = nib.load(nii) #start with session 1 spec nifti
+                aligned_spec = nib.load(new_filename) #start with session 1 spec nifti
                 aligned_spec.set_sform(new_affine,code='unknown')#code='aligned')
                 aligned_spec.set_qform(new_affine,code='scanner')
+                # unique_filename = get_unique_filename(roi,'_aligned.nii.gz')
                 nib.save(aligned_spec,f'{roi}_aligned.nii.gz')
 
                 slice_orientation_pitch,inplane_rot,[dimX,dimY,dimZ] = calc_prescription_from_nifti(spec_nii)

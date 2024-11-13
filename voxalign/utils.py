@@ -4,6 +4,15 @@ import shutil
 import numpy as np
 import math
 import nibabel as nib
+from pathlib import Path
+
+def get_unique_filename(filename,extension):
+    path = Path(filename+extension)
+    counter = 2
+    while path.exists():
+        path = Path(f"{filename}_{counter}{extension}")
+        counter += 1
+    return str(path)
 
 def check_external_tools():
     """Check if FSL, dcm2niix, and spec2nii are installed and available."""
