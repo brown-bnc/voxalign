@@ -73,9 +73,9 @@ class VoxAlignApp(QWidget):
 
     def select_output_folder(self):
         global output_folder
-        output_folder = QFileDialog.getExistingDirectory(self, "Select Output Folder")
+        output_folder = Path(QFileDialog.getExistingDirectory(self, "Select Output Folder"))
         if output_folder:
-            self.output_label.setText(output_folder)
+            self.output_label.setText(str(output_folder))
         else:
             self.output_label.setText("No folder selected")
 
@@ -119,7 +119,7 @@ class VoxAlignApp(QWidget):
             os.chdir(output_folder)
 
             #convert session 1 T1 DICOM to NIFTI
-            command = f"dcm2niix -f sess1_T1 -o {output_folder} -s y {session1_T1_dicom}"
+            command = f"dcm2niix -f sess1_T1 -o '{output_folder}' -s y {session1_T1_dicom}"
             result = subprocess.run(command, shell=True, capture_output=True, text=True)
             #skull strip session 1 T1
             print("\n...\nSkull stripping session 1 T1 ...")
@@ -127,7 +127,7 @@ class VoxAlignApp(QWidget):
             result = subprocess.run(command, shell=True, capture_output=True, text=True)
 
             # Convert session 2 T1 DICOM to NIFTI
-            command = f"dcm2niix -f sess2_T1 -o {output_folder} -s y {session2_T1_dicom}"
+            command = f"dcm2niix -f sess2_T1 -o '{output_folder}' -s y {session2_T1_dicom}"
             result = subprocess.run(command, shell=True, capture_output=True, text=True)
             #skull strip session 2 T1
             print("Skull stripping session 2 T1 ...")
@@ -142,8 +142,9 @@ class VoxAlignApp(QWidget):
             # Convert session 1 spectroscopy DICOM(s)  to NIFTI & transform
             for dcm in selected_spectroscopy_files:
                 #File names can be specified with the -f option and output directories with the -o option.
-                command = f"spec2nii 'dicom' -o sess1_svs/tmp {dcm}"
+                command = f"spec2nii 'dicom' -o '{output_folder}/sess1_svs/tmp' {dcm}"
                 result = subprocess.run(command, shell=True, capture_output=True, text=True)
+                print(result)
 
                 #start by placing spec niftis in a temp folder so we can make sure not to overwrite
                 tmp_nifti = glob.glob(f'{output_folder}/sess1_svs/tmp/*')[0]
@@ -165,8 +166,11 @@ class VoxAlignApp(QWidget):
                 sess1to2affine = np.loadtxt('sess1tosess2.mat')
 
                 # combine affine transforms to go from sess 1 T1 -> sess 2 T1 and tweak a bit in case autoalign didn't do the trick
-                transform = sess1to2affine @ sess2_nii.affine @ np.linalg.inv(sess1_nii.affine) 
-                new_affine = transform @ spec_nii.affine 
+                # transform = sess1to2affine @ sess2_nii.affine @ np.linalg.inv(sess1_nii.affine)
+                transform =  sess2_nii.affine @ np.linalg.inv(sess1_nii.affine)
+                new_affine = transform @ sess1to2affine @ spec_nii.affine 
+                print('running latest version')
+                # new_affine = transform @ spec_nii.affine 
 
                 aligned_spec = nib.load(new_filename) #start with session 1 spec nifti
                 aligned_spec.set_sform(new_affine,code='unknown')#code='aligned')

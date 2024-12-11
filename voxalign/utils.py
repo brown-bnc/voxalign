@@ -64,6 +64,7 @@ def calc_inplane_rot(orientation_matrix, vox_orient):
     return inplane_rot
 
 # adapted from https://github.com/beOn/hcpre/blob/master/hcpre/duke_siemens/util_dicom_siemens.py#L540
+# License: https://github.com/beOn/hcpre/blob/master/License.txt
 def dicom_orientation_string(normal):
     """Given a 3-item list (or other iterable) that represents a normal vector
     to the "imaging" plane, this function determines the orientation of the
