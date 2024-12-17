@@ -165,17 +165,36 @@ class VoxAlignApp(QWidget):
 
                 sess1to2affine = np.loadtxt('sess1tosess2.mat')
 
-                # combine affine transforms to go from sess 1 T1 -> sess 2 T1 and tweak a bit in case autoalign didn't do the trick
-                # transform = sess1to2affine @ sess2_nii.affine @ np.linalg.inv(sess1_nii.affine)
-                transform =  sess2_nii.affine @ np.linalg.inv(sess1_nii.affine)
-                new_affine = transform @ sess1to2affine @ spec_nii.affine 
-                print('running latest version')
-                # new_affine = transform @ spec_nii.affine 
+                # combine affine transforms to go from sess 1 T1 -> sess 2 T1 via the flirt coregistration affine
+                # flirt affine is in scaled voxel coordinates, with a sign flip in x if the determinant is positive                    
+                
+                flirt_scaling_mat = np.diag(list(sess1_nii.header.get_zooms()) + [1.0])
+
+                if np.linalg.det(sess1_nii.affine) > 0:
+                    i_dim=np.shape(sess1_nii.get_fdata())[0]
+                    sess1_flirtflip_mat =  [[-1, 0, 0, i_dim - 1],[ 0, 1, 0, 0], [ 0, 0, 1, 0], [ 0, 0, 0, 1]] @ flirt_scaling_mat
+                    print("sess 1 T1 determinant")
+                    print(np.linalg.det(sess1_nii.affine))
+                else:
+                    sess1_flirtflip_mat = np.eye(4) @ flirt_scaling_mat
+
+                flirt_scaling_mat = np.diag(list(sess2_nii.header.get_zooms()) + [1.0])
+                if np.linalg.det(sess2_nii.affine) > 0:
+                    i_dim=np.shape(sess2_nii.get_fdata())[0]
+                    sess2_flirtflip_mat = [[-1, 0, 0, i_dim - 1],[ 0, 1, 0, 0], [ 0, 0, 1, 0], [ 0, 0, 0, 1]] @ flirt_scaling_mat
+                    print("sess 2 T1 determinant")
+                    print(np.linalg.det(sess2_nii.affine))
+                else:
+                    sess2_flirtflip_mat = np.eye(4) @ flirt_scaling_mat
+
+                transform = sess2_nii.affine @  np.linalg.inv(sess2_flirtflip_mat) @ sess1to2affine @ sess1_flirtflip_mat @ np.linalg.inv(sess1_nii.affine)
+
+                new_affine = transform @ spec_nii.affine
 
                 aligned_spec = nib.load(new_filename) #start with session 1 spec nifti
                 aligned_spec.set_sform(new_affine,code='unknown')#code='aligned')
                 aligned_spec.set_qform(new_affine,code='scanner')
-                # unique_filename = get_unique_filename(roi,'_aligned.nii.gz')
+                print("made new spec")
                 nib.save(aligned_spec,f'{roi}_aligned.nii.gz')
 
                 slice_orientation_pitch,inplane_rot,[dimX,dimY,dimZ] = calc_prescription_from_nifti(spec_nii)

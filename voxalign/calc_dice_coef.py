@@ -221,10 +221,10 @@ class DiceApp(QWidget):
             print(result)
 
             vox1nii = nib.load(f"{sess1roi}_tosess2T1{suffix}")
-            vox1 = vox1nii.get_fdata() > .5
+            vox1 = vox1nii.get_fdata()
 
             vox2nii = nib.load(f"{sess2roi}_tosess2T1{suffix}")
-            vox2 = vox2nii.get_fdata() > .5
+            vox2 = vox2nii.get_fdata()
 
             intersection = np.logical_and(vox1, vox2).sum()
             dice = 2 * intersection / (vox1.sum() + vox2.sum())
