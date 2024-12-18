@@ -6,7 +6,7 @@ import os
 np.set_printoptions(suppress=True)
 from pathlib import Path
 import sys
-from voxalign.utils import check_external_tools, calc_prescription_from_nifti, convert_signs_to_letters, get_unique_filename
+from voxalign.utils import check_external_tools, calc_prescription_from_nifti, convert_signs_to_letters, get_unique_filename, vox_to_scaled_FSL_vox
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QPushButton, QTextEdit, QVBoxLayout, QFileDialog, QMessageBox
 )
@@ -73,9 +73,9 @@ class VoxAlignApp(QWidget):
 
     def select_output_folder(self):
         global output_folder
-        output_folder = QFileDialog.getExistingDirectory(self, "Select Output Folder")
+        output_folder = Path(QFileDialog.getExistingDirectory(self, "Select Output Folder"))
         if output_folder:
-            self.output_label.setText(output_folder)
+            self.output_label.setText(str(output_folder))
         else:
             self.output_label.setText("No folder selected")
 
@@ -119,7 +119,7 @@ class VoxAlignApp(QWidget):
             os.chdir(output_folder)
 
             #convert session 1 T1 DICOM to NIFTI
-            command = f"dcm2niix -f sess1_T1 -o {output_folder} -s y {session1_T1_dicom}"
+            command = f"dcm2niix -f sess1_T1 -o '{output_folder}' -s y {session1_T1_dicom}"
             result = subprocess.run(command, shell=True, capture_output=True, text=True)
             #skull strip session 1 T1
             print("\n...\nSkull stripping session 1 T1 ...")
@@ -127,7 +127,7 @@ class VoxAlignApp(QWidget):
             result = subprocess.run(command, shell=True, capture_output=True, text=True)
 
             # Convert session 2 T1 DICOM to NIFTI
-            command = f"dcm2niix -f sess2_T1 -o {output_folder} -s y {session2_T1_dicom}"
+            command = f"dcm2niix -f sess2_T1 -o '{output_folder}' -s y {session2_T1_dicom}"
             result = subprocess.run(command, shell=True, capture_output=True, text=True)
             #skull strip session 2 T1
             print("Skull stripping session 2 T1 ...")
@@ -142,8 +142,9 @@ class VoxAlignApp(QWidget):
             # Convert session 1 spectroscopy DICOM(s)  to NIFTI & transform
             for dcm in selected_spectroscopy_files:
                 #File names can be specified with the -f option and output directories with the -o option.
-                command = f"spec2nii 'dicom' -o sess1_svs/tmp {dcm}"
+                command = f"spec2nii 'dicom' -o '{output_folder}/sess1_svs/tmp' {dcm}"
                 result = subprocess.run(command, shell=True, capture_output=True, text=True)
+                #print(result)
 
                 #start by placing spec niftis in a temp folder so we can make sure not to overwrite
                 tmp_nifti = glob.glob(f'{output_folder}/sess1_svs/tmp/*')[0]
@@ -164,14 +165,17 @@ class VoxAlignApp(QWidget):
 
                 sess1to2affine = np.loadtxt('sess1tosess2.mat')
 
-                # combine affine transforms to go from sess 1 T1 -> sess 2 T1 and tweak a bit in case autoalign didn't do the trick
-                transform = sess1to2affine @ sess2_nii.affine @ np.linalg.inv(sess1_nii.affine) 
-                new_affine = transform @ spec_nii.affine 
+                # combine affine transforms to go from sess 1 T1 -> sess 2 T1 via the flirt coregistration affine
+                # flirt affine is in scaled voxel coordinates, with a sign flip in x if the determinant is positive                    
+                sess1_voxtoFSL = vox_to_scaled_FSL_vox(sess1_nii)
+                sess2_voxtoFSL = vox_to_scaled_FSL_vox(sess2_nii)
+                
+                transform = sess2_nii.affine @ np.linalg.inv(sess2_voxtoFSL) @ sess1to2affine @ sess1_voxtoFSL @ np.linalg.inv(sess1_nii.affine)
+                new_affine = transform @ spec_nii.affine
 
                 aligned_spec = nib.load(new_filename) #start with session 1 spec nifti
                 aligned_spec.set_sform(new_affine,code='unknown')#code='aligned')
                 aligned_spec.set_qform(new_affine,code='scanner')
-                # unique_filename = get_unique_filename(roi,'_aligned.nii.gz')
                 nib.save(aligned_spec,f'{roi}_aligned.nii.gz')
 
                 slice_orientation_pitch,inplane_rot,[dimX,dimY,dimZ] = calc_prescription_from_nifti(spec_nii)

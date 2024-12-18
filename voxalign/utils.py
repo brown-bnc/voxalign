@@ -37,6 +37,19 @@ def check_external_tools():
 
     print("All external dependencies (FSL, dcm2niix, spec2nii) are installed.")
 
+def vox_to_scaled_FSL_vox(nib_nii):
+    flirt_scaling_mat = np.diag(list(nib_nii.header.get_zooms()) + [1.0])
+
+    if np.linalg.det(nib_nii.affine) > 0:
+        i_dim=np.shape(nib_nii.get_fdata())[0]
+        flirtflip_mat =  [[-1, 0, 0, i_dim - 1],[ 0, 1, 0, 0], [ 0, 0, 1, 0], [ 0, 0, 0, 1]]
+    else:
+        flirtflip_mat = np.eye(4)
+    
+    vox_to_FSLvox_aff = flirtflip_mat @ flirt_scaling_mat
+    
+    return vox_to_FSLvox_aff
+
 def calc_inplane_rot(orientation_matrix, vox_orient):
     norm = orientation_matrix[0,:]
     phase = np.empty(3)
@@ -64,6 +77,7 @@ def calc_inplane_rot(orientation_matrix, vox_orient):
     return inplane_rot
 
 # adapted from https://github.com/beOn/hcpre/blob/master/hcpre/duke_siemens/util_dicom_siemens.py#L540
+# License: https://github.com/beOn/hcpre/blob/master/License.txt
 def dicom_orientation_string(normal):
     """Given a 3-item list (or other iterable) that represents a normal vector
     to the "imaging" plane, this function determines the orientation of the
