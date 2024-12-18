@@ -6,7 +6,7 @@ import os
 np.set_printoptions(suppress=True)
 from pathlib import Path
 import sys
-from voxalign.utils import check_external_tools, calc_prescription_from_nifti, convert_signs_to_letters, get_unique_filename
+from voxalign.utils import check_external_tools, calc_prescription_from_nifti, convert_signs_to_letters, get_unique_filename, vox_to_scaled_FSL_vox
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QPushButton, QTextEdit, QVBoxLayout, QFileDialog, QMessageBox
 )
@@ -144,7 +144,7 @@ class VoxAlignApp(QWidget):
                 #File names can be specified with the -f option and output directories with the -o option.
                 command = f"spec2nii 'dicom' -o '{output_folder}/sess1_svs/tmp' {dcm}"
                 result = subprocess.run(command, shell=True, capture_output=True, text=True)
-                print(result)
+                #print(result)
 
                 #start by placing spec niftis in a temp folder so we can make sure not to overwrite
                 tmp_nifti = glob.glob(f'{output_folder}/sess1_svs/tmp/*')[0]
@@ -167,34 +167,15 @@ class VoxAlignApp(QWidget):
 
                 # combine affine transforms to go from sess 1 T1 -> sess 2 T1 via the flirt coregistration affine
                 # flirt affine is in scaled voxel coordinates, with a sign flip in x if the determinant is positive                    
+                sess1_voxtoFSL = vox_to_scaled_FSL_vox(sess1_nii)
+                sess2_voxtoFSL = vox_to_scaled_FSL_vox(sess2_nii)
                 
-                flirt_scaling_mat = np.diag(list(sess1_nii.header.get_zooms()) + [1.0])
-
-                if np.linalg.det(sess1_nii.affine) > 0:
-                    i_dim=np.shape(sess1_nii.get_fdata())[0]
-                    sess1_flirtflip_mat =  [[-1, 0, 0, i_dim - 1],[ 0, 1, 0, 0], [ 0, 0, 1, 0], [ 0, 0, 0, 1]] @ flirt_scaling_mat
-                    print("sess 1 T1 determinant")
-                    print(np.linalg.det(sess1_nii.affine))
-                else:
-                    sess1_flirtflip_mat = np.eye(4) @ flirt_scaling_mat
-
-                flirt_scaling_mat = np.diag(list(sess2_nii.header.get_zooms()) + [1.0])
-                if np.linalg.det(sess2_nii.affine) > 0:
-                    i_dim=np.shape(sess2_nii.get_fdata())[0]
-                    sess2_flirtflip_mat = [[-1, 0, 0, i_dim - 1],[ 0, 1, 0, 0], [ 0, 0, 1, 0], [ 0, 0, 0, 1]] @ flirt_scaling_mat
-                    print("sess 2 T1 determinant")
-                    print(np.linalg.det(sess2_nii.affine))
-                else:
-                    sess2_flirtflip_mat = np.eye(4) @ flirt_scaling_mat
-
-                transform = sess2_nii.affine @  np.linalg.inv(sess2_flirtflip_mat) @ sess1to2affine @ sess1_flirtflip_mat @ np.linalg.inv(sess1_nii.affine)
-
+                transform = sess2_nii.affine @ np.linalg.inv(sess2_voxtoFSL) @ sess1to2affine @ sess1_voxtoFSL @ np.linalg.inv(sess1_nii.affine)
                 new_affine = transform @ spec_nii.affine
 
                 aligned_spec = nib.load(new_filename) #start with session 1 spec nifti
                 aligned_spec.set_sform(new_affine,code='unknown')#code='aligned')
                 aligned_spec.set_qform(new_affine,code='scanner')
-                print("made new spec")
                 nib.save(aligned_spec,f'{roi}_aligned.nii.gz')
 
                 slice_orientation_pitch,inplane_rot,[dimX,dimY,dimZ] = calc_prescription_from_nifti(spec_nii)
