@@ -163,14 +163,17 @@ class VoxAlignApp(QWidget):
                 sess1_nii = nib.load('sess1_T1.nii')
                 sess2_nii = nib.load('sess2_T1.nii')
 
+                if sess1_nii.header.get_zooms() != sess2_nii.header.get_zooms():
+                    raise(Exception("Your session 1 and session 2 T1s must have the same voxel resolution"))
+
                 sess1to2affine = np.loadtxt('sess1tosess2.mat')
 
                 # combine affine transforms to go from sess 1 T1 -> sess 2 T1 via the flirt coregistration affine
                 # flirt affine is in scaled voxel coordinates, with a sign flip in x if the determinant is positive                    
                 sess1_voxtoFSL = vox_to_scaled_FSL_vox(sess1_nii)
                 sess2_voxtoFSL = vox_to_scaled_FSL_vox(sess2_nii)
-                
-                transform = sess2_nii.affine @ np.linalg.inv(sess2_voxtoFSL) @ sess1to2affine @ sess1_voxtoFSL @ np.linalg.inv(sess1_nii.affine)
+
+                transform =  sess2_nii.affine @ np.linalg.inv(sess2_voxtoFSL) @ sess1to2affine @ sess1_voxtoFSL @ np.linalg.inv(sess1_nii.affine)
                 new_affine = transform @ spec_nii.affine
 
                 aligned_spec = nib.load(new_filename) #start with session 1 spec nifti
