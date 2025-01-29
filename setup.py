@@ -17,6 +17,7 @@ setup(
         'console_scripts': [
             'run-voxalign=voxalign.main:start_voxalign',   # Entry point for running the script
             'dice-coef=voxalign.calc_dice_coef:start_dice',  # Separate tool to calculate dice coefficient after scan 2
+            'mni-lookup=voxalign.mni_lookup:start_mnilookup',  # Separate tool to calculate dice coefficient after scan 2
         ]
     },
     include_package_data=True,        # Include any additional data files

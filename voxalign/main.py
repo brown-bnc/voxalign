@@ -215,7 +215,7 @@ class VoxAlignApp(QWidget):
                 except Exception as e:
                     print(f"Error writing to file: {e}")
 
-            command = "fsleyes --displaySpace world sess1_T1.nii sess1_svs/*.nii.gz sess2_T1.nii *aligned.nii.gz"
+            command = "fsleyes -ixh --displaySpace world sess1_T1.nii sess1_svs/*.nii.gz sess2_T1.nii *aligned.nii.gz"
             process = subprocess.Popen(command, shell=True)
             print("\nVoxAlign process completed successfully.\n")
             
