@@ -17,7 +17,7 @@ from functools import partial
 
 # Global variables to store selected paths and MNI coordinates
 output_folder = ""
-session1_T1_dicom = ""
+T1_dicom = ""
 MNI_coords=[]
 
 class MNILookupApp(QWidget):
