@@ -222,17 +222,9 @@ class MNILookupApp(QWidget):
 
                 command = f"echo {coord_row[0]} {coord_row[1]} {coord_row[2]} | std2imgcoord -img T1.nii -std $FSLDIR/data/standard/MNI152_T1_2mm.nii.gz -warp T1toMNI_warp.nii.gz  -"
                 result = subprocess.run(command, shell=True, capture_output=True, text=True)
-                # print(result.stdout)
                 new_coords = np.round(np.asarray(result.stdout.split(), dtype=float),1)
 
-                # print(new_coords)
-                # print(voxnum)
                 fslcolors = ['red','orange','yellow','green','blue','purple']
-                
-
-                # annotations_txt = f"X Point colour={fslcolors[voxnum]} lineWidth=4 zmin={new_coords[0]} zmax={new_coords[0]} x={new_coords[1]} y={new_coords[2]} \
-                #                     \nY Point colour={fslcolors[voxnum]} lineWidth=4 zmin={new_coords[1]} zmax={new_coords[1]} x={new_coords[0]} y={new_coords[2]} \
-                #                     \nZ Point colour={fslcolors[voxnum]} lineWidth=4 zmin={new_coords[2]} zmax={new_coords[2]} x={new_coords[0]} y={new_coords[1]}\n"
                 
                 annotations_txt = f"X Point colour={fslcolors[voxnum]} lineWidth=4 honourZLimits=True zmin={new_coords[0]-2} zmax={new_coords[0]+2} x={new_coords[1]} y={new_coords[2]} \
                                     \nY Point colour={fslcolors[voxnum]} lineWidth=4 honourZLimits=True zmin={new_coords[1]-2} zmax={new_coords[1]+2} x={new_coords[0]} y={new_coords[2]} \
@@ -265,7 +257,6 @@ class MNILookupApp(QWidget):
             print("\nVoxAlign MNI lookup process completed successfully.\n")
             
             command = f"fsleyes -ixh --displaySpace world -a annotations.txt T1.nii"
-            # command = f"fsleyes -ixh --displaySpace world --worldLoc {int(new_coords[0])} {int(new_coords[1])} {int(new_coords[2])} sess1_T1.nii"
             process = subprocess.Popen(command, shell=True)
             
             command = f"fsleyes -ixh -std1mm T1toMNInonlin.nii.gz"
