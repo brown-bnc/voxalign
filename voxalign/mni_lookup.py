@@ -8,7 +8,7 @@ from pathlib import Path
 import sys
 from voxalign.utils import check_external_tools, calc_prescription_from_nifti, convert_signs_to_letters, get_unique_filename, vox_to_scaled_FSL_vox
 from PyQt5.QtWidgets import (
-    QApplication, QWidget, QPushButton, QTextEdit, QVBoxLayout, QHBoxLayout, QFileDialog, QMessageBox, QLabel, QLineEdit
+    QApplication, QWidget, QPushButton, QTextEdit, QVBoxLayout, QHBoxLayout, QFileDialog, QMessageBox, QLabel, QLineEdit, QCheckBox
 )
 from PyQt5.QtGui import QIntValidator
 from PyQt5.QtCore import Qt
@@ -38,16 +38,17 @@ class MNILookupApp(QWidget):
         self.output_label = QTextEdit(self)
         self.output_label.setReadOnly(True)
         layout.addWidget(self.output_label)
+        layout.addSpacing(20)
 
         # Session 1 T1 DICOM selection
-        self.session1_T1_button = QPushButton("Select Session 1 T1 DICOM", self)
-        self.session1_T1_button.clicked.connect(self.select_session1_T1_dicom)
-        layout.addWidget(self.session1_T1_button)
+        self.T1_button = QPushButton("Select T1 DICOM", self)
+        self.T1_button.clicked.connect(self.select_T1_dicom)
+        layout.addWidget(self.T1_button)
 
-        self.session1_T1_label = QTextEdit(self)
-        self.session1_T1_label.setReadOnly(True)
-        layout.addWidget(self.session1_T1_label)
-
+        self.T1_label = QTextEdit(self)
+        self.T1_label.setReadOnly(True)
+        layout.addWidget(self.T1_label)
+        layout.addSpacing(20)
 
         # Instruction label
         self.label = QLabel("Enter MNI coordinate(s):", self)
@@ -65,24 +66,12 @@ class MNILookupApp(QWidget):
         self.add_button = QPushButton("Add another MNI coordinate", self)
         self.add_button.clicked.connect(self.add_row)
         layout.addWidget(self.add_button)
-        # # Horizontal layout for the input boxes
-        # input_layout = QHBoxLayout()
+        layout.addSpacing(20)
 
-        # # Input boxes for the MNI coordinates
-        # self.num1_input = QLineEdit(self)
-        # self.num1_input.setPlaceholderText("X")
-        # input_layout.addWidget(self.num1_input)
-
-        # self.num2_input = QLineEdit(self)
-        # self.num2_input.setPlaceholderText("Y")
-        # input_layout.addWidget(self.num2_input)
-
-        # self.num3_input = QLineEdit(self)
-        # self.num3_input.setPlaceholderText("Z")
-        # input_layout.addWidget(self.num3_input)
-
-        # # Add the horizontal layout to the main layout
-        # layout.addLayout(input_layout)
+        self.checkbox = QCheckBox("Use longer, more accurate registration to MNI space", self)
+        self.checkbox.stateChanged.connect(self.checkbox_changed)  # Connect state change
+        layout.addWidget(self.checkbox)
+        layout.addSpacing(20)
 
         # Calculate voxel position button
         self.run_button = QPushButton("Calculate voxel position", self)
@@ -167,6 +156,13 @@ class MNILookupApp(QWidget):
                 QMessageBox.critical(self, "Error", "Please enter valid integers in all fields.")
                 return
             
+    def checkbox_changed(self):
+        # Handles the checkbox state change
+        if self.checkbox.isChecked():
+            QMessageBox.information(self, "Checkbox Checked", "The slower, more accurate nonlinear registration to MNI space takes about 4 minutes")
+        else:
+            QMessageBox.information(self, "Checkbox Unchecked", "The quick nonlinear registration to MNI space takes about 2 minutes")
+
     def select_output_folder(self):
         global output_folder
         output_folder = Path(QFileDialog.getExistingDirectory(self, "Select Output Folder"))
@@ -175,13 +171,13 @@ class MNILookupApp(QWidget):
         else:
             self.output_label.setText("No folder selected")
 
-    def select_session1_T1_dicom(self):
-        global session1_T1_dicom
-        session1_T1_dicom, _ = QFileDialog.getOpenFileName(self, "Select Session 1 T1 DICOM", "", "DICOM files (*.dcm)")
-        if session1_T1_dicom:
-            self.session1_T1_label.setText(session1_T1_dicom)
+    def select_T1_dicom(self):
+        global T1_dicom
+        T1_dicom, _ = QFileDialog.getOpenFileName(self, "Select T1 DICOM", "", "DICOM files (*.dcm)")
+        if T1_dicom:
+            self.T1_label.setText(T1_dicom)
         else:
-            self.session1_T1_label.setText("No file selected")
+            self.T1_label.setText("No file selected")
 
 
     def run_voxalign_MNI_lookup(self):
@@ -191,34 +187,40 @@ class MNILookupApp(QWidget):
 
             print("Running VoxAlign MNI Lookup!")
             print("\nOutput folder:", output_folder)
-            print("\nSession 1 T1 DICOM:", session1_T1_dicom)
+            print("\nT1 DICOM:", T1_dicom)
             for coord_row in MNI_coords:
                 print(f"\nInput MNI coordinates: [{coord_row[0]}, {coord_row[1]}, {coord_row[2]}]")
 
             os.chdir(output_folder)
 
             #convert session 1 T1 DICOM to NIFTI
-            command = f"dcm2niix -f sess1_T1 -o '{output_folder}' -s y {session1_T1_dicom}"
+            command = f"dcm2niix -f T1 -o '{output_folder}' -s y {T1_dicom}"
             result = subprocess.run(command, shell=True, capture_output=True, text=True)
             #skull strip session 1 T1
-            print("\n...\n\nSkull stripping session 1 T1 ...")
-            command = f"bet2 sess1_T1.nii sess1_T1_ss.nii"
+            print("\n...\n\nSkull stripping T1 ...")
+            command = f"bet2 T1.nii T1_ss.nii"
             result = subprocess.run(command, shell=True, capture_output=True, text=True)
 
             # linearly register the T1 to MNI space
             print("\n...\n\nInitial linear registration to MNI space ...")
-            command = "flirt -in sess1_T1_ss.nii.gz -ref $FSLDIR/data/standard/MNI152_T1_2mm_brain.nii.gz -dof 12 -out T1toMNIlin -omat T1toMNIlin.mat"
+            command = "flirt -in T1_ss.nii.gz -ref $FSLDIR/data/standard/MNI152_T1_2mm_brain.nii.gz -dof 12 -out T1toMNIlin -omat T1toMNIlin.mat"
             result = subprocess.run(command, shell=True, capture_output=True, text=True)
 
             # starting with the linear registration, now nonlinearly register to MNI space
             print("\n...\n\nFinal nonlinear registration to MNI space ...")
-            command = "fnirt --in=sess1_T1.nii --aff=T1toMNIlin.mat --config=T1_2_MNI152_2mm.cnf --subsamp=8,8,8,4,4,2 --iout=T1toMNInonlin --cout=T1toMNI_coef --fout=T1toMNI_warp"
+            if self.checkbox.isChecked():
+                # subsampling level controls how fast (but also how accurate) it is. fnirt default from T1_2_MNI152_2mm.cnf is --subsamp=4,4,2,2,1,1
+                command = "fnirt --in=T1.nii --aff=T1toMNIlin.mat --config=T1_2_MNI152_2mm.cnf --iout=T1toMNInonlin --cout=T1toMNI_coef --fout=T1toMNI_warp"
+                print("Running long nonlinear registration to MNI space (using FSL subsampling defaults)")
+            else:
+                command = "fnirt --in=T1.nii --aff=T1toMNIlin.mat --config=T1_2_MNI152_2mm.cnf --subsamp=8,8,8,4,2,1 --iout=T1toMNInonlin --cout=T1toMNI_coef --fout=T1toMNI_warp"
+                print("Running faster nonlinear registration to MNI space, using more aggressive subsampling")
             result = subprocess.run(command, shell=True, capture_output=True, text=True)
 
             # given these warps, translate the input MNI coordinates to subject space
             for voxnum,coord_row in enumerate(MNI_coords):
 
-                command = f"echo {coord_row[0]} {coord_row[1]} {coord_row[2]} | std2imgcoord -img sess1_T1.nii -std $FSLDIR/data/standard/MNI152_T1_2mm.nii.gz -warp T1toMNI_warp.nii.gz  -"
+                command = f"echo {coord_row[0]} {coord_row[1]} {coord_row[2]} | std2imgcoord -img T1.nii -std $FSLDIR/data/standard/MNI152_T1_2mm.nii.gz -warp T1toMNI_warp.nii.gz  -"
                 result = subprocess.run(command, shell=True, capture_output=True, text=True)
                 # print(result.stdout)
                 new_coords = np.round(np.asarray(result.stdout.split(), dtype=float),1)
@@ -262,7 +264,7 @@ class MNILookupApp(QWidget):
 
             print("\nVoxAlign MNI lookup process completed successfully.\n")
             
-            command = f"fsleyes -ixh --displaySpace world -a annotations.txt sess1_T1.nii"
+            command = f"fsleyes -ixh --displaySpace world -a annotations.txt T1.nii"
             # command = f"fsleyes -ixh --displaySpace world --worldLoc {int(new_coords[0])} {int(new_coords[1])} {int(new_coords[2])} sess1_T1.nii"
             process = subprocess.Popen(command, shell=True)
             
