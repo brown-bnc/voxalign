@@ -1,12 +1,14 @@
 import numpy as np
-import nibabel as nib
-import glob
+# import nibabel as nib
+# import glob
 import subprocess
 import os
+import pydicom
 np.set_printoptions(suppress=True)
 from pathlib import Path
 import sys
-from voxalign.utils import check_external_tools, calc_prescription_from_nifti, convert_signs_to_letters, get_unique_filename, vox_to_scaled_FSL_vox
+from voxalign.utils import check_external_tools, convert_signs_to_letters
+# from voxalign.utils import check_external_tools, calc_prescription_from_nifti, convert_signs_to_letters, get_unique_filename, vox_to_scaled_FSL_vox
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QPushButton, QTextEdit, QVBoxLayout, QHBoxLayout, QFileDialog, QMessageBox, QLabel, QLineEdit, QCheckBox
 )
@@ -193,6 +195,8 @@ class MNILookupApp(QWidget):
 
             os.chdir(output_folder)
 
+            T1_dicom_header = pydicom.dcmread(T1_dicom,stop_before_pixels=True)
+
             #convert session 1 T1 DICOM to NIFTI
             command = f"dcm2niix -f T1 -o '{output_folder}' -s y {T1_dicom}"
             result = subprocess.run(command, shell=True, capture_output=True, text=True)
@@ -217,6 +221,17 @@ class MNILookupApp(QWidget):
                 print("Running faster nonlinear registration to MNI space, using more aggressive subsampling")
             result = subprocess.run(command, shell=True, capture_output=True, text=True)
 
+            filename='MNI_lookup_voxel_pos.txt'
+            try:
+                with open(filename, 'a') as file:
+                    file.write(f"Study: {T1_dicom_header.StudyDescription}")
+                    file.write(f"\nDate: {T1_dicom_header.StudyDate}")
+                    file.write(f"\nParticipant: {T1_dicom_header.PatientID}")
+                    file.write(f'\nT1 DICOM file: {Path(T1_dicom).name}')
+                    file.write(f"\n---------------------------")
+            except Exception as e:
+                print(f"Error writing to file: {e}")
+
             # given these warps, translate the input MNI coordinates to subject space
             for voxnum,coord_row in enumerate(MNI_coords):
 
@@ -240,7 +255,7 @@ class MNILookupApp(QWidget):
                 print(f"MNI Coordinates: {coord_row}")
                 print(f'Position: {transvec}')
 
-                filename='MNI_lookup_voxel_pos.txt'
+                # filename='MNI_lookup_voxel_pos.txt'
                 try:
                     with open(filename, 'a') as file:
                         file.write(f"\n\n---------------------------")
