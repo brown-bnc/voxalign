@@ -20,7 +20,7 @@ setup(
         ]
     },
     include_package_data=True,        # Include any additional data files
-    description="A tool to automate MRS voxel prescription to match existing data",  # A short description of your package
+    description="A tool to automate MRS voxel prescription to match existing data or based on MNI coordinates",  # A short description of your package
     author="Elizabeth Lorenc",               # Your name as the package author
     url="https://github.com/brownbnc/voxalign",  # URL to your project, if available
     classifiers=[                     # Classifiers for your package

@@ -87,6 +87,7 @@ class MNILookupApp(QWidget):
         self.prerun_nonlin_button = QPushButton("Use pre-run nonlinear registration", self)
         self.prerun_nonlin_button.clicked.connect(self.on_prerun_button_clicked)
         self.layout.addWidget(self.prerun_nonlin_button)
+        self.layout.addSpacing(20)
 
         # Instruction label
         self.label = QLabel("Enter MNI coordinate(s):", self)
@@ -457,7 +458,7 @@ class MNILookupApp(QWidget):
             self.run_button.setDisabled(False)
 
 def start_mnilookup():
-    """Function to initialize and run the VoxAlign PyQt application."""
+    """Function to initialize and run the VoxAlign MNI Lookup PyQt application."""
     app = QApplication(sys.argv)
     window = MNILookupApp()
     window.show()
