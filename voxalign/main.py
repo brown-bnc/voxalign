@@ -3,6 +3,7 @@ import nibabel as nib
 import glob
 import subprocess
 import os
+import pydicom
 np.set_printoptions(suppress=True)
 from pathlib import Path
 import sys
@@ -118,9 +119,14 @@ class VoxAlignApp(QWidget):
 
             os.chdir(output_folder)
 
+            #read T1 DICOM headers to get info about study, date, participant, etc.
+            # sess1T1_dicom_header = pydicom.dcmread(session1_T1_dicom,stop_before_pixels=True)
+            sess2T1_dicom_header = pydicom.dcmread(session2_T1_dicom,stop_before_pixels=True)
+
             #convert session 1 T1 DICOM to NIFTI
             command = f"dcm2niix -f sess1_T1 -o '{output_folder}' -s y {session1_T1_dicom}"
             result = subprocess.run(command, shell=True, capture_output=True, text=True)
+
             #skull strip session 1 T1
             print("\n...\nSkull stripping session 1 T1 ...")
             command = f"bet2 sess1_T1.nii sess1_T1_ss.nii"
@@ -141,6 +147,7 @@ class VoxAlignApp(QWidget):
 
             # Convert session 1 spectroscopy DICOM(s)  to NIFTI & transform
             for dcm in selected_spectroscopy_files:
+
                 #File names can be specified with the -f option and output directories with the -o option.
                 command = f"spec2nii 'dicom' -o '{output_folder}/sess1_svs/tmp' {dcm}"
                 result = subprocess.run(command, shell=True, capture_output=True, text=True)
@@ -205,6 +212,13 @@ class VoxAlignApp(QWidget):
 
                 try:
                     with open(filename, 'w') as file:
+                        file.write(f"Study: {sess2T1_dicom_header.StudyDescription}")
+                        file.write(f"\nDate: {sess2T1_dicom_header.StudyDate}")
+                        file.write(f"\nParticipant: {sess2T1_dicom_header.PatientID}")
+                        file.write(f'\nSession 1 T1 DICOM file: {Path(session1_T1_dicom).name}')
+                        file.write(f'\nSession 2 T1 DICOM file: {Path(session2_T1_dicom).name}')
+                        file.write(f'\nSession 1 Spectroscopy DICOM file: {Path(dcm).name}')
+                        file.write(f"\n\n---------------------------\n\n")
                         file.write(f"NEW {roi} PRESCRIPTION\n")
                         file.write(f'Position: {transvec}\n')
                         file.write(f"Orientation: {slice_orientation_pitch}\n")
@@ -215,7 +229,7 @@ class VoxAlignApp(QWidget):
                 except Exception as e:
                     print(f"Error writing to file: {e}")
 
-            command = "fsleyes --displaySpace world sess1_T1.nii sess1_svs/*.nii.gz sess2_T1.nii *aligned.nii.gz"
+            command = "fsleyes -ixh --displaySpace world sess1_T1.nii sess1_svs/*.nii.gz sess2_T1.nii *aligned.nii.gz"
             process = subprocess.Popen(command, shell=True)
             print("\nVoxAlign process completed successfully.\n")
             
