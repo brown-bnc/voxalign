@@ -12,7 +12,6 @@ from PyQt5.QtWidgets import (
     QApplication, QWidget, QPushButton, QTextEdit, QVBoxLayout, QFileDialog, QMessageBox
 )
 
-
 # Global variables to store selected paths
 output_folder = ""
 session1_T1_dicom = ""

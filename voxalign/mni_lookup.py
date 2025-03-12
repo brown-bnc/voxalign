@@ -83,8 +83,9 @@ class MNILookupApp(QWidget):
         self.layout.addWidget(self.T1_label)
         self.layout.addSpacing(20)
 
-        # Session 1 T1 DICOM selection
-        self.prerun_nonlin_button = QPushButton("Use pre-run nonlinear registration", self)
+        # Option to load output folder from previous MNI registration for this participant
+        self.prerun_nonlin_button = QPushButton("Use existing MNI registration", self)
+        self.prerun_nonlin_button.setToolTip("Select an output folder generated from a previous run of this mni-lookup tool. Can be from a different scan session, as long as it is the same participant.")
         self.prerun_nonlin_button.clicked.connect(self.on_prerun_button_clicked)
         self.layout.addWidget(self.prerun_nonlin_button)
         self.layout.addSpacing(20)
