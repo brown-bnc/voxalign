@@ -199,7 +199,11 @@ class MNILookupApp(QWidget):
         row_layout.deleteLater()
 
         # Remove row from the tracking list
-        self.rows = [row for row in self.rows if row[4] != row_layout]
+        self.rows = [row for row in self.rows if row[-1] is not row_layout]
+
+        # If all rows are deleted, reset `self.rows`
+        if not self.rows:
+            self.rows = []  # Ensures empty list instead of None
 
     def validate_MNI_input(self):
         """Validate the input from the three number fields."""
