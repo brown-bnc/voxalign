@@ -1,3 +1,33 @@
 [build-system]
-requires = ["setuptools", "wheel"]
+requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "voxalign"
+version = "0.3"
+description = "A tool to automate MRS voxel prescription to match existing data or based on MNI coordinates"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { file = "LICENSE" }
+authors = [
+  { name = "Elizabeth Lorenc" }
+]
+urls = { homepage = "https://github.com/brownbnc/voxalign" }
+dependencies = [
+  "numpy",
+  "pydicom",
+  "nibabel",
+  "PyQt5",
+  "spec2nii",
+  "dcm2niix",
+]
+
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Operating System :: OS Independent"
+]
+
+[project.scripts]
+run-voxalign = "voxalign.main:start_voxalign"
+dice-coef = "voxalign.calc_dice_coef:start_dice"
+mni-lookup = "voxalign.mni_lookup:start_mnilookup"
