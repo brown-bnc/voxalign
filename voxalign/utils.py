@@ -1,3 +1,24 @@
+# Copyright 2025, Brown University, Providence, RI.
+#
+# All Rights Reserved
+#
+# Permission to use, copy, modify, and distribute this software and
+# its documentation for any purpose other than its incorporation into a
+# commercial product or service is hereby granted without fee, provided
+# that the above copyright notice appear in all copies and that both
+# that copyright notice and this permission notice appear in supporting
+# documentation, and that the name of Brown University not be used in
+# advertising or publicity pertaining to distribution of the software
+# without specific, written prior permission.
+#
+# BROWN UNIVERSITY DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
+# INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR ANY
+# PARTICULAR PURPOSE. IN NO EVENT SHALL BROWN UNIVERSITY BE LIABLE FOR ANY
+# SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
 import os
 import sys
 import shutil
@@ -50,7 +71,11 @@ def vox_to_scaled_FSL_vox(nib_nii):
     
     return vox_to_FSLvox_aff
 
+
 def calc_inplane_rot(orientation_matrix, vox_orient):
+    # adapted from Dr. Georg Oeltzschner's https://github.com/richardedden/Gannet3.0/blob/master/GannetMask_SiemensRDA.m
+    # which was in turn based on Rudolph Pienaar's "vox2ras_rsolveAA.m" and
+    # Andre van der Kouwe's "autoaligncorrect.cpp"
     norm = orientation_matrix[0,:]
     phase = np.empty(3)
     if vox_orient[0]=='T': #for transversal voxel orientation, the phase reference vector lies in the sagittal plane
@@ -76,9 +101,10 @@ def calc_inplane_rot(orientation_matrix, vox_orient):
     
     return inplane_rot
 
-# adapted from https://github.com/beOn/hcpre/blob/master/hcpre/duke_siemens/util_dicom_siemens.py#L540
-# License: https://github.com/beOn/hcpre/blob/master/License.txt
+
 def dicom_orientation_string(normal):
+    # adapted from https://github.com/beOn/hcpre/blob/master/hcpre/duke_siemens/util_dicom_siemens.py#L540
+    # License: https://github.com/beOn/hcpre/blob/master/License.txt
     """Given a 3-item list (or other iterable) that represents a normal vector
     to the "imaging" plane, this function determines the orientation of the
     vector in 3-dimensional space. It returns a tuple of (angle, orientation)
@@ -89,15 +115,12 @@ def dicom_orientation_string(normal):
     rounding errors in internal Siemens software, which calculates row and
     column vectors.
     """
-    # docstring paraphrases IDL comments
     TOLERANCE = 1.e-4
     orientations = ('Sagittal', 'Coronal', 'Transverse')
 
     final_angle = ""
     final_orientation = ""
 
-    # [IDL] evaluate orientation of normal vector:
-    #
     # Find principal direction of normal vector (i.e. axis with its largest
     # component)
     # Find secondary direction (second largest component)
@@ -111,7 +134,6 @@ def dicom_orientation_string(normal):
 
 
     # get principal, secondary and ternary directions
-    # Elizabeth added abs
     sorted_normal = sorted(normal,key=abs)
 
     for i, value in enumerate(normal):
@@ -135,18 +157,7 @@ def dicom_orientation_string(normal):
     new_normal_ip = math.sqrt((normal[principal] ** 2) + (normal[secondary] ** 2))
 
     angle_2 = np.degrees(math.atan2(normal[ternary], new_normal_ip))
-
-    # [IDL] SIEMENS notation requires modifications IF principal dir. indxs SAG !
-    # [PS] In IDL, indxs is the name of the variable that is "secondary" here.
-    #      Even with that substitution, I don't understand the comment above.
-    # if not principal:
-    #     if abs(angle_1) > 0:
-    #         sign1 = angle_1 / abs(angle_1)
-    #     else:
-    #         sign1 = 1.0
-    #     angle_1 -= (sign1 * 180.0)        
-    #     angle_2 *= -1
-    
+  
     if (abs(angle_2) < TOLERANCE) or (abs(abs(angle_2) - 180) < TOLERANCE):
         if (abs(angle_1) < TOLERANCE) or (abs(abs(angle_1) - 180) < TOLERANCE):
             # [IDL] NON-OBLIQUE:
@@ -184,7 +195,7 @@ def calc_prescription_from_nifti(nii):
     dircosZ = rotmat[:3, 2] / dimZ #this is the same as np.cross(dircosX,dircosY)
 
     nii_orientation_matrix=np.vstack([dircosZ,dircosY,dircosX])
-    nii_orientation_matrix[:,2]*=-1 #hacky because i don't know why but testing to see if it works
+    nii_orientation_matrix[:,2]*=-1 #this is necessary, but I'm not sure why
     norm = nii_orientation_matrix[0,:]
     slice_orientation_pitch, _ = dicom_orientation_string(norm)
     inplane_rot = calc_inplane_rot(nii_orientation_matrix,slice_orientation_pitch.split(' > ')[0])
