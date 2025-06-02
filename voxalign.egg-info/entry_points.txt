@@ -1,4 +1,0 @@
-[console_scripts]
-dice-coef = voxalign.calc_dice_coef:start_dice
-mni-lookup = voxalign.mni_lookup:start_mnilookup
-run-voxalign = voxalign.main:start_voxalign
