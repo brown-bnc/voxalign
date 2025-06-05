@@ -6,7 +6,7 @@ documentation available here: https://docs.ccv.brown.edu/bnc-user-manual/standal
 
 ## License
 
-This project contains original code by Elizabeth Lorenc and is licensed under the following terms:
+This project contains original code by Elizabeth Lorenc at Brown University and is licensed under the following terms:
 
 > **Copyright 2025, Brown University, Providence, RI.**
 >
@@ -28,7 +28,7 @@ This project also includes adapted code from the following open-source BSD-licen
   - Function: `calc_prescription_from_nifti`  
   - License: BSD 3-Clause
 
-- [`Gannet3.0`](https://github.com/richardedden/Gannet3.0/blob/master/GannetMask_SiemensRDA.m) by Georg Oeltzschner  
+- [`Gannet3.0/GannetMask_SiemensRDA.m`](https://github.com/richardedden/Gannet3.0/blob/master/GannetMask_SiemensRDA.m) by Georg Oeltzschner  
   - Function: `calc_inplane_rot`  
   - Based on work by Rudolph Pienaar and Andre van der Kouwe  
   - License: BSD 3-Clause
