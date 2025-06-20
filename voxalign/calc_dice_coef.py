@@ -171,7 +171,7 @@ class DiceApp(QWidget):
                     result = subprocess.run(['cp', sess1T1, 'sess1_T1.nii.gz'], capture_output=True, text=True)
                     result = subprocess.run(['gunzip', 'sess1_T1.nii.gz'], capture_output=True, text=True)
                 elif Path(sess1T1).suffixes[-1] == ".dcm":
-                    result = subprocess.run(['dcm2niix','-f','sess1_T1','-o', outdir,'-s','y',sess1T1], capture_output=True, text=True)
+                    result = subprocess.run(['dcm2niix','-f','sess1_T1','-o', outdir,'-s','y','-z','n',sess1T1], capture_output=True, text=True)
                     print(result)
 
             #skull strip session 1 T1
@@ -190,8 +190,7 @@ class DiceApp(QWidget):
                     result = subprocess.run(['cp', sess2T1, 'sess2_T1.nii.gz'], capture_output=True, text=True)
                     result = subprocess.run(['gunzip', 'sess2_T1.nii.gz'], capture_output=True, text=True)
                 elif Path(sess2T1).suffixes[-1] == ".dcm":
-                    # command = f"dcm2niix -f sess2_T1 -s y {sess2T1}"
-                    result = subprocess.run(['dcm2niix','-f','sess2_T1','-o', outdir,'-s','y',sess2T1], capture_output=True, text=True)
+                    result = subprocess.run(['dcm2niix','-f','sess2_T1','-o', outdir,'-s','y','-z','n',sess2T1], capture_output=True, text=True)
 
             #skull strip session 2 T1
             command = f"cp {sess2T1} ."

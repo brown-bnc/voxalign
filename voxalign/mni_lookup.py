@@ -342,7 +342,7 @@ class MNILookupApp(QWidget):
                     shutil.copy(os.path.join(self.nonlin_path,file),self.output_folder)
                 
                 #convert new T1 DICOM to NIFTI
-                command = f"dcm2niix -f newT1 -o '{self.output_folder}' -s y {T1_dicom}"
+                command = f"dcm2niix -f newT1 -o '{self.output_folder}' -s y -z n {T1_dicom}"
                 result = subprocess.run(command, shell=True, capture_output=True, text=True)
 
                 #skull strip session 1 T1
@@ -357,7 +357,7 @@ class MNILookupApp(QWidget):
 
             else:            
                 #convert T1 DICOM to NIFTI
-                command = f"dcm2niix -f T1 -o '{self.output_folder}' -s y {T1_dicom}"
+                command = f"dcm2niix -f T1 -o '{self.output_folder}' -s y -z n {T1_dicom}"
                 result = subprocess.run(command, shell=True, capture_output=True, text=True)
 
                 # crop neck from T1

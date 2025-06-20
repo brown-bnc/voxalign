@@ -144,7 +144,7 @@ class VoxAlignApp(QWidget):
             sess2T1_dicom_header = pydicom.dcmread(session2_T1_dicom,stop_before_pixels=True)
 
             #convert session 1 T1 DICOM to NIFTI
-            command = f"dcm2niix -f sess1_T1 -o '{output_folder}' -s y {session1_T1_dicom}"
+            command = f"dcm2niix -f sess1_T1 -o '{output_folder}' -s y -z n {session1_T1_dicom}"
             result = subprocess.run(command, shell=True, capture_output=True, text=True)
 
             #skull strip session 1 T1
@@ -153,7 +153,7 @@ class VoxAlignApp(QWidget):
             result = subprocess.run(command, shell=True, capture_output=True, text=True)
 
             # Convert session 2 T1 DICOM to NIFTI
-            command = f"dcm2niix -f sess2_T1 -o '{output_folder}' -s y {session2_T1_dicom}"
+            command = f"dcm2niix -f sess2_T1 -o '{output_folder}' -s y -z n {session2_T1_dicom}"
             result = subprocess.run(command, shell=True, capture_output=True, text=True)
             #skull strip session 2 T1
             print("Skull stripping session 2 T1 ...")
