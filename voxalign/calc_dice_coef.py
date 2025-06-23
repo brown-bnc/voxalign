@@ -23,13 +23,32 @@ import nibabel as nib
 import numpy as np
 import argparse
 import os
+import glob
+from voxalign.utils import get_unique_filename
 import subprocess
 from pathlib import Path
 import sys
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QPushButton, QTextEdit, QVBoxLayout, QFileDialog, QMessageBox
 )
+def convert_spec_dicom(dicomfile,outdir):
+    command = f"spec2nii 'dicom' -o 'tmp' {dicomfile}"
+    result = subprocess.run(command, shell=True, capture_output=True, text=True)
 
+    #start by placing spec niftis in a temp folder so we can make sure not to overwrite
+    tmp_nifti = glob.glob(f'{outdir}/tmp/*')[0]
+    suffix = ''.join(Path(tmp_nifti).suffixes)
+    roi=Path(tmp_nifti.removesuffix(suffix)).stem
+    #if a file already exists, append _2, _3, etc.
+    new_filename = get_unique_filename(f'{roi}',suffix)
+    roi=Path(new_filename.removesuffix(suffix)).stem
+
+    command = f"mv {tmp_nifti} {new_filename}"
+    result = subprocess.run(command, shell=True, capture_output=True, text=True)
+    command = "rm -r tmp"
+    result = subprocess.run(command, shell=True, capture_output=True, text=True)
+
+    return new_filename
 
 # Global variables to store selected paths
 outdir = ""
@@ -151,17 +170,28 @@ class DiceApp(QWidget):
                 os.makedirs(outdir)
             os.chdir(outdir)
 
+            # Convert any input svs DICOMs to NIFTI
+            if Path(sess1svs).suffixes[-1] == ".dcm":
+                sess1svs_nifti = convert_spec_dicom(sess1svs,outdir)
+            else:
+                sess1svs_nifti = sess1svs
+            
+            if Path(sess2svs).suffixes[-1] == ".dcm":
+                sess2svs_nifti = convert_spec_dicom(sess2svs,outdir)
+            else:
+                sess2svs_nifti = sess2svs
+            
             # Load svs and T1 niftis
-            sess1svs_nii=nib.load(sess1svs)
-            sess2svs_nii=nib.load(sess2svs)
+            sess1svs_nii=nib.load(sess1svs_nifti)
+            sess2svs_nii=nib.load(sess2svs_nifti)
 
             #session 1
             svsplaceholder=np.zeros((2,2,2))
             svsplaceholder[0, 0, 0] = 1.0
             tmp = nib.Nifti2Image(svsplaceholder, affine=sess1svs_nii.affine)
             nib.save(tmp,'sess1_svs_tmp.nii.gz')
-            suffix = ''.join(Path(sess1svs).suffixes)
-            sess1roi=f"sess1_{Path(sess1svs.removesuffix(suffix)).stem}"
+            suffix = ''.join(Path(sess1svs_nifti).suffixes)
+            sess1roi=f"sess1_{Path(sess1svs_nifti.removesuffix(suffix)).stem}"
 
             #prepare session 1 T1
             if not os.path.exists("sess1_T1.nii"):
@@ -228,8 +258,8 @@ class DiceApp(QWidget):
 
             #session 2
             tmp = nib.Nifti2Image(svsplaceholder, affine=sess2svs_nii.affine)
-            suffix = ''.join(Path(sess2svs).suffixes)
-            sess2roi=f"sess2_{Path(sess2svs.removesuffix(suffix)).stem}"
+            suffix = ''.join(Path(sess2svs_nifti).suffixes)
+            sess2roi=f"sess2_{Path(sess2svs_nifti.removesuffix(suffix)).stem}"
             nib.save(tmp,'sess2_svs_tmp.nii.gz')
 
             command=f"flirt -in sess2_svs_tmp.nii.gz -ref sess2_T1.nii -out {sess2roi}_tosess2T1{suffix} -usesqform -applyisoxfm .25 -setbackground 0 -paddingsize 1 -interp 'nearestneighbour' " #
