@@ -30,8 +30,11 @@ from pathlib import Path
 import sys
 from voxalign.utils import check_external_tools, calc_prescription_from_nifti, convert_signs_to_letters, get_unique_filename, vox_to_scaled_FSL_vox
 from PyQt5.QtWidgets import (
-    QApplication, QWidget, QPushButton, QTextEdit, QVBoxLayout, QFileDialog, QMessageBox
+    QApplication, QWidget, QPushButton, QTextEdit, QVBoxLayout, QFileDialog, QMessageBox, QHBoxLayout, QLabel, QGroupBox, QFrame
 )
+from PyQt5.QtGui import QFont
+from PyQt5.QtCore import Qt
+
 
 # Global variables to store selected paths
 output_folder = ""
@@ -46,85 +49,262 @@ class VoxAlignApp(QWidget):
 
     def initUI(self):
         self.setWindowTitle("VoxAlign DICOM Selector")
-        self.setGeometry(100, 100, 800, 400)
+        self.setGeometry(100, 100, 800, 800)
         layout = QVBoxLayout()
 
-        # Output folder selection
-        self.output_button = QPushButton("Select Output Folder", self)
-        self.output_button.clicked.connect(self.select_output_folder)
-        layout.addWidget(self.output_button)
+        # Create a section for the session 1 inputs
+        session1_label = QLabel("Session 1")
+        session1_label.setAlignment(Qt.AlignHCenter)
+        session1_label.setStyleSheet("font-weight: bold; font-size: 14pt;")
+        session1_group = QGroupBox("")
+        session1_layout = QVBoxLayout()
+        session1_layout.addWidget(session1_label)
 
-        self.output_label = QTextEdit(self)
-        self.output_label.setReadOnly(True)
-        layout.addWidget(self.output_label)
+        self.session1_T1_label = QTextEdit("No session 1 T1 selected",self)
+        self.session1_T1_label.setReadOnly(True)
+        session1_layout.addWidget(self.session1_T1_label)
 
         # Session 1 T1 DICOM selection
+        row = QHBoxLayout()
+        row.addStretch(1)
+
         self.session1_T1_button = QPushButton("Select Session 1 T1 DICOM", self)
         self.session1_T1_button.clicked.connect(self.select_session1_T1_dicom)
-        layout.addWidget(self.session1_T1_button)
+        row.addWidget(self.session1_T1_button)
+        self.session1_T1_clear  = QPushButton("Clear", self)
+        self.session1_T1_clear.clicked.connect(self.clear_session1_T1)
+        row.addWidget(self.session1_T1_clear)
+        row.addStretch(1)
+        session1_layout.addLayout(row)
 
-        self.session1_T1_label = QTextEdit(self)
-        self.session1_T1_label.setReadOnly(True)
-        layout.addWidget(self.session1_T1_label)
+        session1_layout.addWidget(QLabel(""))  # Add a blank line
 
-        # Session 2 T1 DICOM selection
+        # Session 1 Spectroscopy DICOMs selection        
+        self.session1_spec_label = QTextEdit("No spectroscopy DICOM(s) selected",self)
+        self.session1_spec_label.setReadOnly(True)
+        session1_layout.addWidget(self.session1_spec_label)
+        row = QHBoxLayout()
+        row.addStretch(1)
+
+        self.session1_spec_button = QPushButton("Add Session 1 Spectroscopy DICOM(s)", self)
+        self.session1_spec_button.clicked.connect(self.select_session1_spectroscopy_dicoms)
+        row.addWidget(self.session1_spec_button)
+        self.session1_spec_clear  = QPushButton("Clear", self)
+        self.session1_spec_clear.clicked.connect(self.clear_session1_spec)
+        row.addWidget(self.session1_spec_clear)
+        row.addStretch(1)
+        session1_layout.addLayout(row)
+        session1_group.setLayout(session1_layout)
+        layout.addWidget(session1_group)
+
+        # Add a horizontal line divider between session 1 and session 2 inputs
+        layout.addWidget(QLabel(""))  # Add a blank line
+        line = QFrame()
+        line.setFrameShape(QFrame.HLine)
+        line.setFrameShadow(QFrame.Sunken)
+        layout.addWidget(line)
+        layout.addWidget(QLabel(""))  # Add a blank line
+
+        # Create a section for the session 2 inputs
+        session2_label = QLabel("Session 2")
+        session2_label.setAlignment(Qt.AlignHCenter)  # Center the text
+        session2_label.setStyleSheet("font-weight: bold; font-size: 14pt;")
+
+        session2_group = QGroupBox("")
+        session2_layout = QVBoxLayout()
+        session2_layout.addWidget(session2_label)
+
+        # Session 2 T1 DICOM selection        
+        self.session2_T1_label = QTextEdit("No session 2 T1 selected", self)
+        self.session2_T1_label.setReadOnly(True)
+        session2_layout.addWidget(self.session2_T1_label)
+        row = QHBoxLayout()
+        row.addStretch(1)
+
         self.session2_T1_button = QPushButton("Select Session 2 T1 DICOM", self)
         self.session2_T1_button.clicked.connect(self.select_session2_T1_dicom)
-        layout.addWidget(self.session2_T1_button)
+        row.addWidget(self.session2_T1_button)
+        self.session2_T1_clear  = QPushButton("Clear", self)
+        self.session2_T1_clear.clicked.connect(self.clear_session2_T1)
+        row.addWidget(self.session2_T1_clear)
+        row.addStretch(1)
+        session2_layout.addLayout(row)
+        session2_group.setLayout(session2_layout)
+        layout.addWidget(session2_group)
 
-        self.session2_T1_label = QTextEdit(self)
-        self.session2_T1_label.setReadOnly(True)
-        layout.addWidget(self.session2_T1_label)
+        # Add a horizontal line divider between session 1 and session 2 inputs
+        layout.addWidget(QLabel(""))  # Add a blank line
+        line = QFrame()
+        line.setFrameShape(QFrame.HLine)
+        line.setFrameShadow(QFrame.Sunken)
+        layout.addWidget(line)
+        layout.addWidget(QLabel(""))  # Add a blank line
 
-        # Session 1 Spectroscopy DICOMs selection
-        self.session1_spec_button = QPushButton("Add Session 1 Spectroscopy DICOMs", self)
-        self.session1_spec_button.clicked.connect(self.select_session1_spectroscopy_dicoms)
-        layout.addWidget(self.session1_spec_button)
+        # Output folder selection        
+        self.output_label = QTextEdit("No output folder selected",self)
+        self.output_label.setReadOnly(True)
+        layout.addWidget(self.output_label)
+        row = QHBoxLayout()
+        row.addStretch(1)
+        self.output_button = QPushButton("Select Output Folder", self)
+        self.output_button.clicked.connect(self.select_output_folder)
+        row.addWidget(self.output_button)
+        row.addStretch(1)
+        layout.addLayout(row)
 
-        self.session1_spec_label = QTextEdit(self)
-        self.session1_spec_label.setReadOnly(True)
-        layout.addWidget(self.session1_spec_label)
 
         # Run VoxAlign button
+        layout.addWidget(QLabel(""))  # Adds a blank line visually
+        row = QHBoxLayout()
+        row.addStretch(1)
+
         self.run_button = QPushButton("Run VoxAlign", self)
         self.run_button.clicked.connect(self.run_voxalign)
-        layout.addWidget(self.run_button)
+        row.addWidget(self.run_button)
+        row.addStretch(1)
+        layout.addLayout(row)
 
         self.setLayout(layout)
+        self.run_button.setEnabled(False)
 
     def select_output_folder(self):
         global output_folder
         output_folder = Path(QFileDialog.getExistingDirectory(self, "Select Output Folder"))
         if output_folder:
-            self.output_label.setText(str(output_folder))
+            if " " in str(output_folder):
+                output_folder=""
+                self.output_label.setText("Folders and filenames may not contain spaces. Please try again.")            
+            else:
+                self.output_label.setText(str(output_folder))
         else:
-            self.output_label.setText("No folder selected")
+            self.output_label.setText("No output folder selected")
+        self.validate_fields()
 
     def select_session1_T1_dicom(self):
         global session1_T1_dicom
         session1_T1_dicom, _ = QFileDialog.getOpenFileName(self, "Select Session 1 T1 DICOM", "", "DICOM files (*.dcm)")
         if session1_T1_dicom:
-            self.session1_T1_label.setText(session1_T1_dicom)
+            if " " in str(session1_T1_dicom):
+                session1_T1_dicom=""
+                self.session1_T1_label.setText("Folders and filenames may not contain spaces. Please try again.")            
+            else:
+                self.session1_T1_label.setHtml(self.display_T1_info(session1_T1_dicom))
         else:
-            self.session1_T1_label.setText("No file selected")
+            self.session1_T1_label.setText("No session 1 T1 selected")
+        self.validate_fields()
 
     def select_session2_T1_dicom(self):
         global session2_T1_dicom
         session2_T1_dicom, _ = QFileDialog.getOpenFileName(self, "Select Session 2 T1 DICOM", "", "DICOM files (*.dcm)")
         if session2_T1_dicom:
-            self.session2_T1_label.setText(session2_T1_dicom)
+            if " " in str(session2_T1_dicom):
+                session2_T1_dicom=""
+                self.session2_T1_label.setText("Folders and filenames may not contain spaces. Please try again.")            
+            else:
+                self.session2_T1_label.setHtml(self.display_T1_info(session2_T1_dicom))
         else:
-            self.session2_T1_label.setText("No file selected")
+            self.session2_T1_label.setText("No session 2 T1 selected")
+        self.validate_fields()
 
     def select_session1_spectroscopy_dicoms(self):
         global selected_spectroscopy_files
         files, _ = QFileDialog.getOpenFileNames(self, "Select Session 1 Spectroscopy DICOMs", "", "DICOM files (*.dcm)")
+        
         if files:
+            display_lines = []
+
             selected_spectroscopy_files.extend(files)
             selected_spectroscopy_files = sorted(list(set(selected_spectroscopy_files)))  # Remove duplicates
-            self.session1_spec_label.setText(", ".join(selected_spectroscopy_files))
+
+            if any(" " in file for file in selected_spectroscopy_files):
+                selected_spectroscopy_files = []
+                self.session1_spec_label.setText("Folders and filenames may not contain spaces. Please try again.")
+                return
+
+            for specdcm in selected_spectroscopy_files[:]:  # iterate over a copy for safe removal
+                try:
+                    spec_dcm_header = pydicom.dcmread(specdcm, stop_before_pixels=True)
+                    description = getattr(spec_dcm_header, "SeriesDescription", "No Description")
+                    patientname = getattr(spec_dcm_header, "PatientName", "No participant name")
+                    image_type = getattr(spec_dcm_header, "ImageType", [])
+                    filename = Path(specdcm).name
+
+                    if not ("ORIGINAL" in image_type and "SPECTROSCOPY" in image_type):
+                        response = QMessageBox.warning(
+                            self, "Not spectroscopy DICOM",
+                            f"This DICOM does not appear to be spectroscopy:\n\n{description} ({filename})\n\nDo you want to keep it?",
+                            QMessageBox.Yes | QMessageBox.No
+                        )
+
+                        if response == QMessageBox.No:
+                            selected_spectroscopy_files.remove(specdcm)
+                            continue  # skip adding to display_lines
+
+                    # Add to display list
+                    display_lines.append(f"""
+                        <span>{patientname}: <b>{description}</b></span>
+                        <span style='color: gray; font-size: 10pt;'>{filename}</span><br>
+                        """)
+
+                except Exception as e:
+                    print(f"Error reading DICOM {specdcm}: {e}")
+                    continue
+
+            if selected_spectroscopy_files:
+                self.session1_spec_label.setText("\n".join(display_lines))
+            else:
+                self.session1_spec_label.setText("No valid spectroscopy files selected.")
         else:
-            self.session1_spec_label.setText("No files selected")
+            self.session1_spec_label.setText("No spectroscopy DICOM(s) selected")
+        self.validate_fields()
+
+    def clear_session1_T1(self):
+        global session1_T1_dicom
+        session1_T1_dicom = ""
+        self.session1_T1_label.setText("No session 1 T1 selected")
+        self.validate_fields()
+
+    def clear_session2_T1(self):
+        global session2_T1_dicom
+        session2_T1_dicom = ""
+        self.session2_T1_label.setText("No session 2 T1 selected")
+        self.validate_fields()
+
+    def clear_session1_spec(self):
+        global selected_spectroscopy_files
+        selected_spectroscopy_files = []
+        self.session1_spec_label.setText("No session 1 T1 selected")
+        self.validate_fields()
+
+    def display_T1_info(self,T1dcm):
+        display_text = ""
+        try:
+            dcm_header = pydicom.dcmread(T1dcm, stop_before_pixels=True)
+            description = getattr(dcm_header, "SeriesDescription", "No description")
+            patientname = getattr(dcm_header, "PatientName", "No participant name")
+            display_text = f"""
+            <span>{patientname}: <b>{description}</b></span><br><br>
+            <span style='color: gray; font-size: 10pt;'>{T1dcm}</span>
+            """
+            return display_text
+        except Exception as e:
+            print(f"Error reading DICOM {T1dcm}: {e}")
+        
+    def validate_fields(self):
+        all_fields_filled = all([
+            bool(output_folder),
+            bool(session1_T1_dicom),
+            bool(session2_T1_dicom),
+            bool(selected_spectroscopy_files)
+        ])
+
+        # Create a QFont object
+        font = QFont()
+        # Set the font weight to bold if all fields are filled
+        font.setBold(all_fields_filled)
+        self.run_button.setFont(font)
+        self.run_button.setEnabled(all_fields_filled)
+
 
     def run_voxalign(self):
         self.run_button.setDisabled(True)
