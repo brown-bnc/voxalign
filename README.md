@@ -3,6 +3,9 @@ automated prescription of MRS voxels to match a previous scan session or based o
 
 documentation available here: https://docs.ccv.brown.edu/bnc-user-manual/standalone-tools/automated-mr-spectroscopy-voxel-placement-with-voxalign 
 
+## Funding
+
+This project was supported by NIGMS COBRE grant # 5P30GM149405
 
 ## License
 
